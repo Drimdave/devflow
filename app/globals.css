@@ -1,26 +1,85 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Light mode - Professional, not AI-ish */
+  --background: 0 0% 100%;
+  --foreground: 0 0% 5%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 5%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 5%;
+  --primary: 215 100% 50%;
+  /* Clean blue, not purple */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 45%;
+  --accent: 215 90% 95%;
+  --accent-foreground: 215 100% 30%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 90%;
+  --input: 0 0% 90%;
+  --ring: 215 100% 50%;
+  --radius: 8px;
+
+  /* Node colors - NO purple! */
+  --node-trigger: 215 100% 50%;
+  /* Blue - triggers */
+  --node-action: 180 80% 45%;
+  /* Teal - actions */
+  --node-logic: 40 95% 50%;
+  /* Amber - logic */
+  --node-error: 0 84% 60%;
+  /* Red - errors */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  /* Dark mode - Linear-inspired */
+  --background: 222 15% 8%;
+  /* Deep charcoal, not black */
+  --foreground: 0 0% 95%;
+  --card: 222 15% 10%;
+  --card-foreground: 0 0% 95%;
+  --popover: 222 15% 10%;
+  --popover-foreground: 0 0% 95%;
+  --primary: 215 80% 55%;
+  /* Softer blue for dark */
+  --primary-foreground: 222 15% 8%;
+  --secondary: 220 15% 15%;
+  --secondary-foreground: 0 0% 95%;
+  --muted: 220 15% 15%;
+  --muted-foreground: 0 0% 60%;
+  --accent: 220 15% 18%;
+  --accent-foreground: 215 80% 65%;
+  --destructive: 0 62% 50%;
+  --destructive-foreground: 0 0% 95%;
+  --border: 220 15% 18%;
+  --input: 220 15% 18%;
+  --ring: 215 80% 55%;
+
+  /* Node colors in dark mode */
+  --node-trigger: 215 80% 60%;
+  --node-action: 180 70% 50%;
+  --node-logic: 40 90% 55%;
+  --node-error: 0 70% 60%;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: hsl(var(--border));
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
 }
