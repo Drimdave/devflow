@@ -26,105 +26,9 @@ const nodeTypes = {
     pro: ProNode,
 };
 
-const initialNodes: Node[] = [
-    {
-        id: "1",
-        type: "pro",
-        position: { x: 250, y: 50 },
-        data: {
-            type: "trigger",
-            label: "New Lead",
-            description: "When form is submitted",
-            status: "success",
-            config: { source: "Web Form", event: "Submit" },
-        },
-    },
-    {
-        id: "2",
-        type: "pro",
-        position: { x: 250, y: 250 },
-        data: {
-            type: "action",
-            label: "Enrich with LinkedIn",
-            description: "Get company data from Clearbit",
-            status: "success",
-            config: { provider: "Clearbit", fields: "All" },
-        },
-    },
-    {
-        id: "3",
-        type: "pro",
-        position: { x: 250, y: 450 },
-        data: {
-            type: "logic",
-            label: "Check Company Size",
-            description: "Route based on employee count",
-            status: "success",
-            config: { condition: "> 500 employees" },
-        },
-    },
-    {
-        id: "4",
-        type: "pro",
-        position: { x: 50, y: 650 },
-        data: {
-            type: "action",
-            label: "Send to Slack (Sales)",
-            description: "Enterprise lead routing",
-            status: "idle",
-            config: { channel: "#enterprise-leads" },
-        },
-    },
-    {
-        id: "5",
-        type: "pro",
-        position: { x: 450, y: 650 },
-        data: {
-            type: "action",
-            label: "Add to Nurture",
-            description: "SMB lead sequence",
-            status: "idle",
-            config: { campaign: "SMB_Onboarding" },
-        },
-    },
-];
+const initialNodes: Node[] = [];
 
-const initialEdges: Edge[] = [
-    {
-        id: "e1-2",
-        source: "1",
-        target: "2",
-        animated: true,
-        style: { stroke: "hsl(var(--muted-foreground))", strokeWidth: 2 },
-    },
-    {
-        id: "e2-3",
-        source: "2",
-        target: "3",
-        animated: true,
-        style: { stroke: "hsl(var(--muted-foreground))", strokeWidth: 2 },
-    },
-    {
-        id: "e3-4",
-        source: "3",
-        target: "4",
-        animated: true,
-        label: "Yes",
-        labelStyle: { fill: "hsl(var(--foreground))", fontWeight: 600 },
-        labelBgStyle: { fill: "hsl(var(--background))", fillOpacity: 0.8 },
-        style: { stroke: "hsl(var(--muted-foreground))", strokeWidth: 2 },
-    },
-    {
-        id: "e3-5",
-        source: "3",
-        target: "5",
-        animated: true,
-        label: "No",
-        labelStyle: { fill: "hsl(var(--foreground))", fontWeight: 600 },
-        labelBgStyle: { fill: "hsl(var(--background))", fillOpacity: 0.8 },
-        style: { stroke: "hsl(var(--muted-foreground))", strokeWidth: 2 },
-    },
-];
+const initialEdges: Edge[] = [];
 
 type WorkflowData = {
     nodes: any[];
@@ -241,9 +145,7 @@ function WorkflowCanvasInner({ workflowData, isGenerating, canvasStateRef, onUns
     );
 
     const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-        // We no longer automatically open the config panel on click to reduce UX redundancy.
-        // Instead, the panel is opened explicitly via the "Edit Configuration" action.
-        setSelectedNode(null);
+        setSelectedNode(node as Node<ProNodeData>);
     }, []);
 
     const handleUpdateNode = useCallback((id: string, data: Partial<ProNodeData>) => {
