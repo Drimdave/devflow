@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { Send, Command, X, Maximize2, Minimize2, BotMessageSquare, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -20,13 +20,15 @@ interface ChatPanelProps {
     onWorkflowGenerated?: (workflow: WorkflowData) => void;
     onGenerationStart?: () => void;
     resetKey?: number;
+    pendingPrompt?: string | null;
+    onPendingPromptConsumed?: () => void;
 }
 
 export interface ChatPanelHandle {
     sendMessage: (text: string) => void;
 }
 
-const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function ChatPanel({ getCurrentWorkflow, onWorkflowGenerated, onGenerationStart, resetKey }, ref) {
+const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function ChatPanel({ getCurrentWorkflow, onWorkflowGenerated, onGenerationStart, resetKey, pendingPrompt, onPendingPromptConsumed }, ref) {
     const [isOpen, setIsOpen] = useState(true);
     const [isExpanded, setIsExpanded] = useState(false);
     const initialMessage: Message = {
@@ -36,13 +38,25 @@ const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function ChatPanel
     const [messages, setMessages] = useState<Message[]>([initialMessage]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const hasConsumedPromptRef = useRef(false);
 
     // Reset chat when switching workflows
     useEffect(() => {
         setMessages([initialMessage]);
         setInput("");
         setIsLoading(false);
+        hasConsumedPromptRef.current = false;
     }, [resetKey]);
+
+    // Auto-submit pending template prompt after reset
+    useEffect(() => {
+        if (pendingPrompt && !isLoading && !hasConsumedPromptRef.current) {
+            hasConsumedPromptRef.current = true;
+            setIsOpen(true);
+            submitMessage(pendingPrompt);
+            if (onPendingPromptConsumed) onPendingPromptConsumed();
+        }
+    }, [pendingPrompt, resetKey]);
 
     // Expose sendMessage to parent for template auto-generation
     useImperativeHandle(ref, () => ({

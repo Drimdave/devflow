@@ -52,18 +52,8 @@ export default function Home({ initialSlug }: { initialSlug?: string[] }) {
   // Ref to programmatically send messages to ChatPanel
   const chatRef = useRef<ChatPanelHandle>(null);
 
-  // Ref to hold a pending template prompt that should be sent after ChatPanel resets
-  const pendingPromptRef = useRef<string | null>(null);
-
-  // Send the pending prompt after ChatPanel has fully re-rendered with the new resetKey
-  useEffect(() => {
-    if (pendingPromptRef.current && chatRef.current) {
-      const prompt = pendingPromptRef.current;
-      pendingPromptRef.current = null;
-      // Small delay to ensure the ChatPanel's useEffect for resetKey has fired
-      setTimeout(() => chatRef.current?.sendMessage(prompt), 300);
-    }
-  }, [chatResetKey]);
+  // State to hold a pending template prompt that should be sent after ChatPanel resets
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
 
   const handleWorkflowGenerated = useCallback((workflow: WorkflowData) => {
     setWorkflowData(workflow);
@@ -451,7 +441,7 @@ export default function Home({ initialSlug }: { initialSlug?: string[] }) {
         onNewWorkflow={handleNewWorkflow}
         onWorkflowDeleted={handleWorkflowDeleted}
         onUseTemplate={(prompt) => {
-          pendingPromptRef.current = prompt;
+          setPendingPrompt(prompt);
           handleNewWorkflow();
           setShowDashboard(false);
           setSidebarView("workflows");
@@ -499,7 +489,7 @@ export default function Home({ initialSlug }: { initialSlug?: string[] }) {
                 handleNewWorkflow();
               }}
               onUseTemplate={(prompt) => {
-                pendingPromptRef.current = prompt;
+                setPendingPrompt(prompt);
                 setShowDashboard(false);
                 handleNewWorkflow();
               }}
@@ -537,6 +527,8 @@ export default function Home({ initialSlug }: { initialSlug?: string[] }) {
                   onWorkflowGenerated={handleWorkflowGenerated}
                   onGenerationStart={() => setIsGenerating(true)}
                   resetKey={chatResetKey}
+                  pendingPrompt={pendingPrompt}
+                  onPendingPromptConsumed={() => setPendingPrompt(null)}
                 />
               </div>
             </div>
