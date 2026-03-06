@@ -29,7 +29,7 @@ export default function Home({ initialSlug }: { initialSlug?: string[] }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [workflowName, setWorkflowName] = useState("Lead Enrichment & Routing");
+  const [workflowName, setWorkflowName] = useState("Untitled Workflow");
   const [savedWorkflowId, setSavedWorkflowId] = useState<string | null>(initId);
   const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
   const [chatResetKey, setChatResetKey] = useState(0);
