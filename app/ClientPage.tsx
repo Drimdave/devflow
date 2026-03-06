@@ -52,6 +52,19 @@ export default function Home({ initialSlug }: { initialSlug?: string[] }) {
   // Ref to programmatically send messages to ChatPanel
   const chatRef = useRef<ChatPanelHandle>(null);
 
+  // Ref to hold a pending template prompt that should be sent after ChatPanel resets
+  const pendingPromptRef = useRef<string | null>(null);
+
+  // Send the pending prompt after ChatPanel has fully re-rendered with the new resetKey
+  useEffect(() => {
+    if (pendingPromptRef.current && chatRef.current) {
+      const prompt = pendingPromptRef.current;
+      pendingPromptRef.current = null;
+      // Small delay to ensure the ChatPanel's useEffect for resetKey has fired
+      setTimeout(() => chatRef.current?.sendMessage(prompt), 300);
+    }
+  }, [chatResetKey]);
+
   const handleWorkflowGenerated = useCallback((workflow: WorkflowData) => {
     setWorkflowData(workflow);
     setIsGenerating(false);
@@ -438,11 +451,10 @@ export default function Home({ initialSlug }: { initialSlug?: string[] }) {
         onNewWorkflow={handleNewWorkflow}
         onWorkflowDeleted={handleWorkflowDeleted}
         onUseTemplate={(prompt) => {
+          pendingPromptRef.current = prompt;
           handleNewWorkflow();
           setShowDashboard(false);
           setSidebarView("workflows");
-          // Short delay so canvas/chat resets before sending
-          setTimeout(() => chatRef.current?.sendMessage(prompt), 100);
         }}
         onViewChange={(view) => {
           setSidebarView(view);
@@ -487,9 +499,9 @@ export default function Home({ initialSlug }: { initialSlug?: string[] }) {
                 handleNewWorkflow();
               }}
               onUseTemplate={(prompt) => {
+                pendingPromptRef.current = prompt;
                 setShowDashboard(false);
                 handleNewWorkflow();
-                setTimeout(() => chatRef.current?.sendMessage(prompt), 100);
               }}
               onViewAllTemplates={() => {
                 setSidebarView("templates");
