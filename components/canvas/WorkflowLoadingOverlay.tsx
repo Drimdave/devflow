@@ -64,7 +64,7 @@ export default function WorkflowLoadingOverlay() {
     };
 
     return (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/60 backdrop-blur-sm">
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/60 backdrop-blur-sm pr-[400px]">
             <div className="relative mb-8 h-48 w-64">
                 {/* Node 1 (Top - Trigger) */}
                 <motion.div
