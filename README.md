@@ -29,27 +29,27 @@
 
 ---
 
-## ✨ Features
+## Features
 
-### 🧠 AI-Powered Workflow Generation
+### AI-Powered Workflow Generation
 Describe your automation in natural language. DevFlow's **Groq-powered** engine compiles the full node graph instantly — no drag-and-drop required.
 
-### 🎨 Visual Node Canvas
+### Visual Node Canvas
 Powered by **React Flow**, the interactive canvas lets you build, edit, and connect nodes with a butter-smooth experience — zoom, pan, and wire up complex automations visually.
 
-### ▶️ Real-Time Execution Engine
+### Real-Time Execution Engine
 Execute workflows directly from the browser with a **streaming SSE-based execution engine**. Watch nodes light up in real-time as each step processes, with a full execution console showing logs, timing, and status.
 
-### 🔐 Authentication
+### Authentication
 Secure sign-in and session management powered by **Better Auth** with full database-backed session persistence.
 
-### 💾 Persistent Workflows
+### Persistent Workflows
 Save, load, rename, duplicate, export (JSON), and delete workflows. All data is persisted in **Neon PostgreSQL** via **Drizzle ORM**.
 
-### 📊 Home Dashboard
+### Home Dashboard
 A clean dashboard view showing workflow statistics, recent workflows, quick-start templates, and one-click actions to create or load workflows.
 
-### 🌐 Stunning Landing Page
+### Stunning Landing Page
 A premium, fully responsive landing page featuring:
 - **Container scroll animation** with 3D perspective transforms
 - **Infinite logo slider** with trusted-by branding
@@ -60,7 +60,7 @@ A premium, fully responsive landing page featuring:
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -77,7 +77,7 @@ A premium, fully responsive landing page featuring:
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -183,7 +183,7 @@ devflow/
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 ### Landing Page
 ![DevFlow Landing Page](public/landing/dashboard.png)
@@ -196,7 +196,7 @@ devflow/
 
 ---
 
-## 🔑 Key Concepts
+## Key Concepts
 
 ### Workflow Structure
 Each workflow consists of **nodes** and **edges**:
@@ -215,7 +215,7 @@ Workflows execute via **topological sort** — trigger nodes fire first, then do
 
 ---
 
-## 📝 API Reference
+## API Reference
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -229,7 +229,7 @@ Workflows execute via **topological sort** — trigger nodes fire first, then do
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
@@ -239,7 +239,7 @@ Workflows execute via **topological sort** — trigger nodes fire first, then do
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
