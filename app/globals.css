@@ -3,73 +3,81 @@
 @tailwind utilities;
 
 :root {
-  /* Light mode - Professional, not AI-ish */
-  --background: 0 0% 100%;
-  --foreground: 0 0% 5%;
+  /* Surfaces: warm gray page, white floating panels */
+  --background: 60 6% 93%;
+  --foreground: 0 0% 8%;
   --card: 0 0% 100%;
-  --card-foreground: 0 0% 5%;
+  --card-foreground: 0 0% 8%;
   --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 5%;
-  --primary: 215 100% 50%;
-  /* Clean blue, not purple */
+  --popover-foreground: 0 0% 8%;
+
+  /* Ink is the primary action color */
+  --primary: 0 0% 8%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 96%;
-  --secondary-foreground: 0 0% 9%;
-  --muted: 0 0% 96%;
-  --muted-foreground: 0 0% 45%;
-  --accent: 215 90% 95%;
-  --accent-foreground: 215 100% 30%;
-  --destructive: 0 84% 60%;
+  --secondary: 60 6% 96%;
+  --secondary-foreground: 0 0% 8%;
+  --muted: 60 6% 95%;
+  --muted-foreground: 0 0% 38%;
+  --accent: 60 6% 93%;
+  --accent-foreground: 0 0% 8%;
+  --destructive: 0 84% 58%;
   --destructive-foreground: 0 0% 100%;
   --border: 0 0% 90%;
   --input: 0 0% 90%;
-  --ring: 215 100% 50%;
-  --radius: 8px;
+  --ring: 0 0% 8%;
+  --radius: 14px;
 
-  /* Node colors - NO purple! */
-  --node-trigger: 215 100% 50%;
-  /* Blue - triggers */
-  --node-action: 180 80% 45%;
-  /* Teal - actions */
-  --node-logic: 40 95% 50%;
-  /* Amber - logic */
-  --node-error: 0 84% 60%;
-  /* Red - errors */
+  /* Signature accent: volt lime. Used as a fill (always with ink text). */
+  --volt: 72 100% 52%;
+  --volt-foreground: 0 0% 8%;
+
+  /* Node categories */
+  --node-trigger: 258 90% 62%;
+  --node-action: 0 0% 12%;
+  --node-logic: 27 95% 55%;
+  --node-data: 205 90% 50%;
+  --node-error: 0 84% 58%;
+
+  --shadow-card: 0 1px 2px hsl(0 0% 0% / 0.04), 0 8px 24px -8px hsl(0 0% 0% / 0.08);
 }
 
 .dark {
-  /* Dark mode - Linear-inspired */
-  --background: 222 15% 8%;
-  /* Deep charcoal, not black */
-  --foreground: 0 0% 95%;
-  --card: 222 15% 10%;
-  --card-foreground: 0 0% 95%;
-  --popover: 222 15% 10%;
-  --popover-foreground: 0 0% 95%;
-  --primary: 215 80% 55%;
-  /* Softer blue for dark */
-  --primary-foreground: 222 15% 8%;
-  --secondary: 220 15% 15%;
-  --secondary-foreground: 0 0% 95%;
-  --muted: 220 15% 15%;
-  --muted-foreground: 0 0% 60%;
-  --accent: 220 15% 18%;
-  --accent-foreground: 215 80% 65%;
-  --destructive: 0 62% 50%;
-  --destructive-foreground: 0 0% 95%;
-  --border: 220 15% 18%;
-  --input: 220 15% 18%;
-  --ring: 215 80% 55%;
+  --background: 0 0% 5%;
+  --foreground: 0 0% 96%;
+  --card: 0 0% 9%;
+  --card-foreground: 0 0% 96%;
+  --popover: 0 0% 10%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 0 0% 8%;
+  --secondary: 0 0% 13%;
+  --secondary-foreground: 0 0% 96%;
+  --muted: 0 0% 13%;
+  --muted-foreground: 0 0% 62%;
+  --accent: 0 0% 15%;
+  --accent-foreground: 0 0% 96%;
+  --destructive: 0 70% 55%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 17%;
+  --input: 0 0% 17%;
+  --ring: 0 0% 90%;
 
-  /* Node colors in dark mode */
-  --node-trigger: 215 80% 60%;
-  --node-action: 180 70% 50%;
-  --node-logic: 40 90% 55%;
+  --node-trigger: 258 90% 70%;
+  --node-action: 0 0% 90%;
+  --node-logic: 27 95% 62%;
+  --node-data: 205 90% 60%;
   --node-error: 0 70% 60%;
+
+  --shadow-card: 0 1px 2px hsl(0 0% 0% / 0.4), 0 8px 24px -8px hsl(0 0% 0% / 0.6);
 }
 
 * {
   border-color: hsl(var(--border));
+}
+
+/* Headlines use the display font; everything else stays Geist */
+h1, h2, h3 {
+  font-family: var(--font-display), var(--font-geist-sans), system-ui, sans-serif;
 }
 
 body {
@@ -78,8 +86,107 @@ body {
   font-feature-settings: "rlig" 1, "calt" 1;
 }
 
+/* React Flow tweaks so the canvas matches the design system */
+.react-flow__attribution {
+  display: none;
+}
+.react-flow__controls {
+  box-shadow: var(--shadow-card);
+  border-radius: 9999px;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+}
+.react-flow__controls-button {
+  background: hsl(var(--card)) !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  fill: hsl(var(--foreground)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+.react-flow__controls-button:hover {
+  background: hsl(var(--muted)) !important;
+}
+.react-flow__minimap {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  box-shadow: var(--shadow-card);
+}
+.react-flow__edge-textbg {
+  fill: hsl(var(--card));
+}
+.react-flow__edge-text {
+  fill: hsl(var(--foreground));
+  font-size: 11px;
+  font-weight: 600;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  .bg-dots {
+    background-image: radial-gradient(hsl(var(--muted-foreground) / 0.28) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .bg-dots-fine {
+    background-image: radial-gradient(hsl(var(--muted-foreground) / 0.22) 1px, transparent 1px);
+    background-size: 14px 14px;
+  }
+  /* Marker-highlight behind a word, in volt */
+  .highlight-volt {
+    background-image: linear-gradient(transparent 58%, hsl(var(--volt)) 58%, hsl(var(--volt)) 92%, transparent 92%);
+    padding: 0 0.12em;
+    margin: 0 -0.12em;
+  }
+  .dark .highlight-volt {
+    background-image: none;
+    color: hsl(var(--volt));
+  }
+}
+
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes ring-pulse {
+  0% { box-shadow: 0 0 0 0 hsl(var(--volt) / 0.7); }
+  100% { box-shadow: 0 0 0 12px hsl(var(--volt) / 0); }
+}
+@keyframes node-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.92); }
+  to { opacity: 1; transform: none; }
+}
+.animate-node-in {
+  animation: node-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-float-y {
+  animation: float-y 6s ease-in-out infinite;
+}
+.animate-ring-pulse {
+  animation: ring-pulse 1.4s ease-out infinite;
+}
+.edge-flow {
+  stroke-dasharray: 6 6;
+  animation: dash-flow 0.6s linear infinite;
+}
+
+/* Respect the OS "reduce motion" setting: keep state changes, drop the movement */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-float-y, .animate-ring-pulse, .edge-flow {
+    animation: none !important;
   }
 }

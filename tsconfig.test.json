@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": ".test-build",
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["lib/engine/**/*.ts", "lib/secrets-crypto.ts", "lib/validate.ts", "lib/cron.ts", "lib/env-check.ts", "lib/run-retention.ts", "lib/password-policy.ts", "lib/auth-lockout.ts", "lib/schedule.ts", "lib/rate-limit.ts", "tests/**/*.ts"]
+}

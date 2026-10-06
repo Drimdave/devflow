@@ -41,13 +41,9 @@ function ToastItem({ toast, onDismiss }: { toast: ToastData; onDismiss: () => vo
     return (
         <div
             className={`
-                flex items-center gap-3 px-4 py-3 rounded-xl border shadow-2xl backdrop-blur-xl
-                min-w-[280px] max-w-[400px]
+                flex items-center gap-3 pl-3 pr-4 py-2.5 rounded-full shadow-2xl
+                min-w-[240px] max-w-[420px] bg-foreground text-background
                 transition-all duration-300 ease-out
-                ${isSuccess
-                    ? "bg-green-500/10 border-green-500/20 shadow-green-500/5"
-                    : "bg-red-500/10 border-red-500/20 shadow-red-500/5"
-                }
                 ${isVisible && !isExiting
                     ? "translate-y-0 opacity-100 scale-100"
                     : "translate-y-3 opacity-0 scale-95"
@@ -55,17 +51,17 @@ function ToastItem({ toast, onDismiss }: { toast: ToastData; onDismiss: () => vo
             `}
         >
             {isSuccess ? (
-                <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-volt dark:text-emerald-600" />
             ) : (
-                <XCircle className="h-5 w-5 text-red-400 shrink-0" />
+                <XCircle className="h-5 w-5 shrink-0 text-red-400 dark:text-red-600" />
             )}
-            <span className="text-sm font-medium text-foreground flex-1">{toast.message}</span>
+            <span className="text-sm font-medium flex-1">{toast.message}</span>
             <button
                 onClick={() => {
                     setIsExiting(true);
                     setTimeout(onDismiss, 300);
                 }}
-                className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                className="opacity-50 hover:opacity-100 transition-opacity shrink-0"
             >
                 <X className="h-3.5 w-3.5" />
             </button>
@@ -88,7 +84,7 @@ export function ToastProvider() {
     };
 
     return (
-        <div className="fixed top-20 right-6 z-[100] flex flex-col gap-2 items-end">
+        <div className="fixed bottom-6 left-1/2 z-[100] flex -translate-x-1/2 flex-col gap-2 items-center">
             {toasts.map((toast) => (
                 <ToastItem key={toast.id} toast={toast} onDismiss={() => dismiss(toast.id)} />
             ))}

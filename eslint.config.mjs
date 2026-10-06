@@ -12,7 +12,21 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Not source: compiled test output, other tools' working copies, docs assets
+    ".test-build/**",
+    ".kilo/**",
+    ".claude/**",
+    "docs/**",
   ]),
+  {
+    // Workflow settings, AI output and webhook payloads are JSON of unknown shape, so `any` is sometimes the honest type.
+    // It stays visible as a warning in application code and is allowed in tests.
+    rules: { "@typescript-eslint/no-explicit-any": "warn" },
+  },
+  {
+    files: ["tests/**/*.ts"],
+    rules: { "@typescript-eslint/no-explicit-any": "off" },
+  },
 ]);
 
 export default eslintConfig;
