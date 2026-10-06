@@ -1,0 +1,27 @@
+# Calls DevFlow's scheduler so scheduled workflows run. Optional: use any other caller instead (Vercel Cron on a paid plan, cron-job.org...).
+# Setup: in the GitHub repo go to Settings > Secrets and variables > Actions and add
+#   APP_URL      your deployed address, e.g. https://app.example.com
+#   CRON_SECRET  the same value as CRON_SECRET in your hosting environment
+# Honest limits: GitHub runs this at most every 5 minutes and sometimes late, so schedules can fire a few minutes behind.
+name: Scheduler
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Call the scheduler
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "APP_URL and CRON_SECRET aren't set as repository secrets yet, so nothing was called."
+            exit 0
+          fi
+          curl --fail --silent --show-error --max-time 60 -H "Authorization: Bearer $CRON_SECRET" "${APP_URL%/}/api/cron/tick"

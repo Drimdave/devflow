@@ -1,171 +1,95 @@
-import { NextResponse } from 'next/server';
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+import { sql } from "@/lib/db";
+import { loadSecrets } from "@/lib/credentials";
+import { emailGate } from "@/lib/email-quota";
+import { rateLimit } from "@/lib/limits";
+import { saveRun } from "@/lib/run-store";
+import { runWorkflow } from "@/lib/engine/run";
+import type { EngineEvent, RunSummary } from "@/lib/engine/types";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
-function sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const MAX_BODY_BYTES = 1_000_000;
 
 export async function POST(req: Request) {
-    const reqHeaders = await headers();
-    const session = await auth.api.getSession({ headers: reqHeaders });
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const limit = await rateLimit(`run:${session.user.id}`, 30, 60_000);
+    if (!limit.ok) {
+        return NextResponse.json({ error: `Too many runs. Try again in ${limit.retryAfterSec}s.` }, { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } });
     }
 
-    let body;
+    const raw = await req.text();
+    if (raw.length > MAX_BODY_BYTES) return NextResponse.json({ error: "Workflow is too large" }, { status: 413 });
+    let body: any;
     try {
-        body = await req.json();
+        body = JSON.parse(raw);
     } catch {
         return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
-    const { nodes, edges, nodeIdToRun } = body;
+    const { nodes, edges, nodeIdToRun, workflowId, input } = body ?? {};
+    if (!Array.isArray(nodes) || nodes.length === 0) return NextResponse.json({ error: "No nodes provided" }, { status: 400 });
+    if (edges !== undefined && !Array.isArray(edges)) return NextResponse.json({ error: "Invalid edges" }, { status: 400 });
 
-    if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
-        return NextResponse.json({ error: "No nodes provided" }, { status: 400 });
-    }
-
-    // Set up SSE headers
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
         async start(controller) {
-            function sendEvent(type: string, data: any) {
-                const message = `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
-                controller.enqueue(encoder.encode(message));
-            }
+            let closed = false;
+            const send = (type: string, data: unknown) => {
+                if (closed) return;
+                try {
+                    controller.enqueue(encoder.encode(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`));
+                } catch {
+                    closed = true; // client went away
+                }
+            };
 
+            // Legacy event names are kept so the console and node badges keep working.
+            const onEvent = (e: EngineEvent) => {
+                if (e.type === "info") send("info", { message: e.message });
+                else if (e.type === "log") send("log", { message: e.message, type: e.level, nodeId: e.nodeId });
+                else if (e.type === "node-started") send("node-started", { nodeId: e.nodeId });
+                else send("node-finished", { nodeId: e.result.nodeId, status: e.result.status, result: e.result });
+            };
+
+            let summary: RunSummary;
             try {
-                sendEvent("info", { message: "Initializing execution engine..." });
-                await sleep(500);
-
-                // Build a quick map for edges to find children easily
-                // For a given node ID, what are the target node IDs?
-                const adjacencyList: Record<string, string[]> = {};
-                edges?.forEach((edge: any) => {
-                    if (!adjacencyList[edge.source]) {
-                        adjacencyList[edge.source] = [];
-                    }
-                    adjacencyList[edge.source].push(edge.target);
-                });
-
-                // Find trigger node(s) or the specific node to run
-                let startingNodes = [];
-                if (nodeIdToRun) {
-                    const specificNode = nodes.find((n: any) => n.id === nodeIdToRun);
-                    if (specificNode) {
-                        startingNodes.push(specificNode);
-                    } else {
-                        sendEvent("error", { message: `Node with ID ${nodeIdToRun} not found.` });
-                        sendEvent("workflow-complete", { status: "failed" });
-                        controller.close();
-                        return;
-                    }
-                    sendEvent("info", { message: `Starting isolated execution for node: ${specificNode.data?.label || nodeIdToRun}` });
-                } else {
-                    startingNodes = nodes.filter((n: any) => n.data?.type === 'trigger');
-                    if (startingNodes.length === 0) {
-                        sendEvent("error", { message: "No trigger node found in workflow." });
-                        sendEvent("workflow-complete", { status: "failed" });
-                        controller.close();
-                        return;
-                    }
-                    sendEvent("info", { message: `Found ${startingNodes.length} trigger(s). Starting execution.` });
-                }
-
-                await sleep(500);
-
-                const queue = [...startingNodes];
-                const visited = new Set<string>();
-
-                while (queue.length > 0) {
-                    const currentNode = queue.shift();
-                    if (!currentNode || visited.has(currentNode.id)) continue;
-
-                    visited.add(currentNode.id);
-                    const nodeId = currentNode.id;
-                    const nodeLabel = currentNode.data?.label || "Unknown Node";
-
-                    // 1. Mark Node as Running
-                    sendEvent("node-started", { nodeId });
-                    sendEvent("log", { nodeId, message: `Starting: ${nodeLabel}`, type: "info" });
-
-                    // 2. Simulate processing time (0.8s to 2s)
-                    const processingTime = Math.floor(Math.random() * 1200) + 800;
-
-                    // Send some intermediate logs based on node type
-                    await sleep(processingTime / 3);
-                    if (currentNode.data?.type === 'trigger') {
-                        sendEvent("log", { nodeId, message: "Listening for incoming payload...", type: "info" });
-                        await sleep(processingTime / 3);
-                        sendEvent("log", { nodeId, message: "Payload received successfully. 1 record found.", type: "success" });
-                    } else if (currentNode.data?.type === 'action') {
-                        sendEvent("log", { nodeId, message: `Connecting to ${currentNode.data?.config?.provider || 'external service'}...`, type: "info" });
-                        await sleep(processingTime / 3);
-                        sendEvent("log", { nodeId, message: "Data processed and action completed.", type: "success" });
-                    } else {
-                        sendEvent("log", { nodeId, message: "Processing logic conditions...", type: "info" });
-                        await sleep(processingTime / 3);
-                        sendEvent("log", { nodeId, message: "Conditions evaluated.", type: "success" });
-                    }
-
-                    await sleep(processingTime / 3);
-
-                    // Random subtle failure chance (5%) for realism in a demo
-                    // But we want a "Happy Path" demo most times, so let's stick to success unless it's specifically named 'fail'
-                    const forceFail = nodeLabel.toLowerCase().includes('fail');
-
-                    if (forceFail) {
-                        sendEvent("log", { nodeId, message: "Critical error encountered during execution.", type: "error" });
-                        sendEvent("node-finished", { nodeId, status: "failed" });
-
-                        sendEvent("error", { message: `Workflow halted due to failure at node: ${nodeLabel}` });
-                        sendEvent("workflow-complete", { status: "failed" });
-                        controller.close();
-                        return;
-                    }
-
-                    // 3. Mark Node as Success
-                    sendEvent("node-finished", { nodeId, status: "success" });
-
-                    // 4. Enqueue children (only if we're not running an isolated node)
-                    if (!nodeIdToRun) {
-                        const childrenIds = adjacencyList[nodeId] || [];
-                        for (const childId of childrenIds) {
-                            const childNode = nodes.find((n: any) => n.id === childId);
-                            if (childNode && !visited.has(childId)) {
-                                queue.push(childNode);
-                            }
-                        }
-
-                        if (childrenIds.length > 0) {
-                            sendEvent("log", { message: `Routing data to ${childrenIds.length} connected node(s)...`, type: "info" });
-                            await sleep(300);
-                        }
-                    } else {
-                        sendEvent("log", { message: "Isolated node execution completed. Downstream nodes skipped.", type: "info" });
-                    }
-                }
-
-                sendEvent("success", { message: "Workflow executed successfully!" });
-                sendEvent("workflow-complete", { status: "success" });
-
+                const secrets = await loadSecrets(session.user.id);
+                summary = await runWorkflow(nodes, edges, { input, secrets, emailGate: () => emailGate(session.user.id), onlyNodeId: typeof nodeIdToRun === "string" ? nodeIdToRun : undefined, onEvent });
             } catch (err: any) {
-                sendEvent("error", { message: `Execution error: ${err.message}` });
-                sendEvent("workflow-complete", { status: "failed" });
-            } finally {
-                controller.close();
+                console.error("Engine crashed:", err);
+                summary = { status: "failed", steps: [], startedAt: new Date().toISOString(), durationMs: 0, error: "The engine hit an unexpected error" };
             }
+
+            if (summary.status === "failed" && summary.error) send("error", { message: summary.error });
+            else send("success", { message: `Run finished in ${(summary.durationMs / 1000).toFixed(1)}s` });
+
+            // Save to run history (best effort; only for the owner's saved workflows)
+            let runId: string | undefined;
+            if (typeof workflowId === "string" && workflowId) {
+                try {
+                    const owned = await sql`SELECT id FROM workflows WHERE id::text = ${workflowId} AND user_id = ${session.user.id}`;
+                    if (owned.length) {
+                        runId = await saveRun({ workflowId, userId: session.user.id, status: summary.status, mode: typeof nodeIdToRun === "string" ? "node" : "full", startedAt: summary.startedAt, durationMs: summary.durationMs, error: summary.error, steps: summary.steps });
+                    }
+                } catch (err) {
+                    console.error("Failed to save run:", err);
+                }
+            }
+
+            send("workflow-complete", { status: summary.status, durationMs: summary.durationMs, error: summary.error, runId, steps: summary.steps.map((s) => ({ nodeId: s.nodeId, status: s.status })) });
+            closed = true;
+            try { controller.close(); } catch { /* already closed */ }
         },
     });
 
     return new Response(stream, {
-        headers: {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-        },
+        headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive", "X-Accel-Buffering": "no" },
     });
 }

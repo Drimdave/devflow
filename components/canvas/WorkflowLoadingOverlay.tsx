@@ -1,150 +1,88 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence, Variants } from "framer-motion";
+import { motion, AnimatePresence, MotionConfig } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { nodeKindStyles } from "@/lib/node-visuals";
 
 const LOADING_TEXTS = [
-    "Cooking up the flow...",
-    "Configuring triggers...",
-    "Creating actions...",
-    "Building logic nodes...",
-    "Connecting the pieces...",
-    "Almost there...",
+    "Reading your request…",
+    "Picking the right nodes…",
+    "Wiring up the data…",
+    "Connecting the pieces…",
+    "Almost there…",
+];
+
+// A tiny preview of what's coming: the same card shape the canvas uses, one per node kind
+const STEPS = [
+    { kind: "trigger" as const, title: "w-16", sub: "w-24" },
+    { kind: "logic" as const, title: "w-20", sub: "w-28" },
+    { kind: "action" as const, title: "w-14", sub: "w-20" },
 ];
 
 export default function WorkflowLoadingOverlay() {
     const [textIndex, setTextIndex] = useState(0);
+    const [active, setActive] = useState(0);
 
     useEffect(() => {
-        const interval = setInterval(() => {
-            setTextIndex((prev) => (prev + 1) % LOADING_TEXTS.length);
-        }, 1500);
-        return () => clearInterval(interval);
+        const t = setInterval(() => setTextIndex((i) => (i + 1) % LOADING_TEXTS.length), 1800);
+        // Starts after the cards have drawn in, then the highlight keeps travelling down the chain
+        const a = setInterval(() => setActive((i) => (i + 1) % STEPS.length), 900);
+        return () => { clearInterval(t); clearInterval(a); };
     }, []);
 
-    // Animation variants for nodes
-    const nodeVariants: Variants = {
-        hidden: { opacity: 0, scale: 0.8 },
-        visible: (i: number) => ({
-            opacity: 1,
-            scale: 1,
-            transition: {
-                delay: i * 0.4,
-                duration: 0.5,
-                ease: "easeOut",
-            },
-        }),
-        pulse: {
-            scale: [1, 1.05, 1],
-            boxShadow: [
-                "0 0 0 0px rgba(59, 130, 246, 0.4)",
-                "0 0 0 10px rgba(59, 130, 246, 0)",
-                "0 0 0 0px rgba(59, 130, 246, 0)",
-            ],
-            transition: {
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut",
-            },
-        },
-    };
-
-    // Animation variants for edges
-    const edgeVariants: Variants = {
-        hidden: { pathLength: 0, opacity: 0 },
-        visible: (i: number) => ({
-            pathLength: 1,
-            opacity: 1,
-            transition: {
-                delay: i * 0.4 + 0.3, // Start slightly after node
-                duration: 0.6,
-                ease: "easeInOut",
-            },
-        }),
-    };
-
     return (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/60 backdrop-blur-sm pr-[400px]">
-            <div className="relative mb-8 h-48 w-64">
-                {/* Node 1 (Top - Trigger) */}
-                <motion.div
-                    custom={0}
-                    initial="hidden"
-                    animate={["visible", "pulse"]}
-                    variants={nodeVariants}
-                    className="absolute left-1/2 top-4 h-12 w-12 -translate-x-1/2 rounded-xl bg-blue-500/20 shadow-[0_0_20px_-5px_hsl(215_100%_50%_/_0.5)] border border-blue-500/50 flex items-center justify-center"
-                >
-                    <div className="h-4 w-4 rounded-full bg-blue-500" />
-                </motion.div>
+        <MotionConfig reducedMotion="user">
+            <div role="status" aria-live="polite" className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-7 bg-background/75 px-6 backdrop-blur-sm">
+                <div className="flex flex-col items-center">
+                    {STEPS.map((step, i) => {
+                        const style = nodeKindStyles[step.kind];
+                        return (
+                            <div key={step.kind} className="flex flex-col items-center">
+                                <motion.div
+                                    initial={{ opacity: 0, y: 12, scale: 0.96 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    transition={{ delay: i * 0.35, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                                    className={cn(
+                                        "flex h-[60px] w-[220px] items-center gap-3 rounded-2xl border bg-card px-3.5 shadow-card transition-all duration-500",
+                                        active === i ? "border-volt ring-4 ring-volt/40" : "border-border"
+                                    )}
+                                >
+                                    <span className={cn("h-9 w-9 shrink-0 rounded-xl", style.chip)} />
+                                    <span className="flex flex-col gap-1.5">
+                                        <span className={cn("h-2.5 animate-pulse rounded-full bg-foreground/15", step.title)} />
+                                        <span className={cn("h-2 animate-pulse rounded-full bg-foreground/10", step.sub)} />
+                                    </span>
+                                </motion.div>
+                                {i < STEPS.length - 1 && (
+                                    <motion.span
+                                        initial={{ scaleY: 0 }}
+                                        animate={{ scaleY: 1 }}
+                                        style={{ originY: 0 }}
+                                        transition={{ delay: i * 0.35 + 0.3, duration: 0.35, ease: "easeOut" }}
+                                        className="block h-7 w-0.5 rounded-full bg-border"
+                                    />
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
 
-                {/* Edge 1 (Top to Middle) */}
-                <svg className="absolute left-0 top-0 h-full w-full overflow-visible">
-                    <motion.path
-                        d="M 128 60 L 128 92"
-                        fill="none"
-                        stroke="hsl(var(--muted-foreground))"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        custom={0}
-                        initial="hidden"
-                        animate="visible"
-                        variants={edgeVariants}
-                    />
-                </svg>
-
-                {/* Node 2 (Middle - Logic/Action) */}
-                <motion.div
-                    custom={1}
-                    initial="hidden"
-                    animate={["visible", "pulse"]}
-                    variants={nodeVariants}
-                    className="absolute left-1/2 top-24 h-12 w-12 -translate-x-1/2 rounded-xl bg-amber-500/20 shadow-[0_0_20px_-5px_hsl(40_95%_50%_/_0.5)] border border-amber-500/50 flex items-center justify-center"
-                >
-                    <div className="h-4 w-4 rounded-full bg-amber-500" />
-                </motion.div>
-
-                {/* Edge 2 (Middle to Bottom) */}
-                <svg className="absolute left-0 top-0 h-full w-full overflow-visible">
-                    <motion.path
-                        d="M 128 140 L 128 172"
-                        fill="none"
-                        stroke="hsl(var(--muted-foreground))"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        custom={1}
-                        initial="hidden"
-                        animate="visible"
-                        variants={edgeVariants}
-                    />
-                </svg>
-
-                {/* Node 3 (Bottom - Action) */}
-                <motion.div
-                    custom={2}
-                    initial="hidden"
-                    animate={["visible", "pulse"]}
-                    variants={nodeVariants}
-                    className="absolute left-1/2 top-44 h-12 w-12 -translate-x-1/2 rounded-xl bg-teal-500/20 shadow-[0_0_20px_-5px_hsl(180_80%_45%_/_0.5)] border border-teal-500/50 flex items-center justify-center"
-                >
-                    <div className="h-4 w-4 rounded-full bg-teal-500" />
-                </motion.div>
+                <div className="h-6 text-center">
+                    <AnimatePresence mode="wait">
+                        <motion.p
+                            key={textIndex}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.2 }}
+                            className="text-sm font-medium text-foreground"
+                        >
+                            {LOADING_TEXTS[textIndex]}
+                        </motion.p>
+                    </AnimatePresence>
+                </div>
             </div>
-
-            {/* Rotating Text */}
-            <div className="h-6 w-full text-center">
-                <AnimatePresence mode="wait">
-                    <motion.p
-                        key={textIndex}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
-                        className="text-sm font-medium text-muted-foreground"
-                    >
-                        {LOADING_TEXTS[textIndex]}
-                    </motion.p>
-                </AnimatePresence>
-            </div>
-        </div>
+        </MotionConfig>
     );
 }

@@ -1,24 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-    Workflow,
-    Sparkles,
-    Plus,
-    Loader2,
-    ArrowUpRight,
-    Activity,
-    Clock,
-    Zap,
-    Layers,
-    Bell,
-    Rocket,
-    Box,
-    Search,
-    ChevronRight,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useState, useEffect, useMemo } from "react";
+import { motion } from "framer-motion";
+import { Sparkles, ArrowUp, ArrowUpRight, Plus, MessageSquareText, MousePointerClick, Play } from "lucide-react";
 import { showToast } from "@/components/ui/Toast";
+import { useSession } from "@/lib/auth-client";
+import GraphThumb from "@/components/ui/graph-thumb";
+import { graphFromSaved } from "@/lib/demo-graph";
+import { TEMPLATES } from "@/lib/templates";
 
 interface SavedWorkflow {
     id: string;
@@ -27,55 +16,23 @@ interface SavedWorkflow {
     is_active: boolean;
     created_at: string;
     updated_at: string;
+    node_count?: number;
     nodes_json?: any[];
     edges_json?: any[];
 }
 
-const starterTemplates = [
-    {
-        name: "Lead Enrichment Pipeline",
-        description: "Capture leads, enrich with company data, route to CRM",
-        icon: Sparkles,
-        gradient: "from-blue-500/20 to-cyan-500/20",
-        border: "group-hover:border-blue-500/50",
-        iconColor: "text-blue-500",
-        iconBg: "bg-blue-500/10",
-        nodeCount: "5-8",
-        prompt: "Create a lead enrichment pipeline: webhook trigger receives new leads, enrich with company data from Clearbit, check company size, route enterprise leads to Slack sales channel, add SMB leads to nurture sequence",
-    },
-    {
-        name: "Data Sync Workflow",
-        description: "Sync data between databases on a schedule",
-        icon: Layers,
-        gradient: "from-violet-500/20 to-purple-500/20",
-        border: "group-hover:border-purple-500/50",
-        iconColor: "text-purple-500",
-        iconBg: "bg-purple-500/10",
-        nodeCount: "3-5",
-        prompt: "Create a data sync workflow: scheduled trigger every hour, query source PostgreSQL database for updated records, transform data format, upsert into destination MongoDB",
-    },
-    {
-        name: "Alert Pipeline",
-        description: "Monitor metrics and alert on anomalies",
-        icon: Bell,
-        gradient: "from-amber-500/20 to-orange-500/20",
-        border: "group-hover:border-amber-500/50",
-        iconColor: "text-amber-500",
-        iconBg: "bg-amber-500/10",
-        nodeCount: "4-6",
-        prompt: "Create an alert pipeline: scheduled trigger every 5 minutes, fetch metrics from monitoring API, check if any metric exceeds threshold, send Slack alert with details for anomalies",
-    },
-    {
-        name: "Content Pipeline",
-        description: "Generate and publish content with AI",
-        icon: Rocket,
-        gradient: "from-emerald-500/20 to-teal-500/20",
-        border: "group-hover:border-emerald-500/50",
-        iconColor: "text-emerald-500",
-        iconBg: "bg-emerald-500/10",
-        nodeCount: "5-10",
-        prompt: "Create a content pipeline: manual trigger, fetch trending topics from RSS feed, generate blog post draft with AI, review content for quality, publish to WordPress CMS",
-    },
+const featuredTemplates = TEMPLATES.filter((t) => t.featured);
+
+const promptIdeas = [
+    "Post new GitHub issues to Slack",
+    "Summarize inbound emails with AI",
+    "Sync form submissions to a sheet",
+];
+
+const steps = [
+    { icon: MessageSquareText, title: "Describe it", body: "Say what you want in plain English." },
+    { icon: MousePointerClick, title: "Tweak it", body: "Open any node and change its settings." },
+    { icon: Play, title: "Run it", body: "Watch every node light up, step by step." },
 ];
 
 function timeAgo(dateString: string): string {
@@ -86,246 +43,266 @@ function timeAgo(dateString: string): string {
     return `${Math.floor(seconds / 86400)}d ago`;
 }
 
+function greeting() {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 18) return "Good afternoon";
+    return "Good evening";
+}
+
+const rise = (i: number) => ({
+    initial: { opacity: 0, y: 14 },
+    animate: { opacity: 1, y: 0 },
+    transition: { delay: 0.05 + i * 0.06, duration: 0.45, ease: [0.16, 1, 0.3, 1] as const },
+});
+
 interface HomeDashboardProps {
     onLoadWorkflow: (id: string) => void;
     onNewWorkflow: () => void;
     onUseTemplate: (prompt: string) => void;
+    onUseTemplateId: (id: string) => void;
     onViewAllTemplates?: () => void;
     refreshKey?: number;
 }
 
-export default function HomeDashboard({ onLoadWorkflow, onNewWorkflow, onUseTemplate, onViewAllTemplates, refreshKey }: HomeDashboardProps) {
+export default function HomeDashboard({ onLoadWorkflow, onNewWorkflow, onUseTemplate, onUseTemplateId, onViewAllTemplates, refreshKey }: HomeDashboardProps) {
     const [workflows, setWorkflows] = useState<SavedWorkflow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [prompt, setPrompt] = useState("");
+    const { data: session } = useSession();
+    const firstName = session?.user?.name?.split(" ")[0];
 
     useEffect(() => {
-        fetchWorkflows();
+        let cancelled = false;
+        (async () => {
+            setIsLoading(true);
+            try {
+                const res = await fetch("/api/workflows");
+                if (res.ok && !cancelled) {
+                    const data = await res.json();
+                    setWorkflows(data.workflows || []);
+                }
+            } catch (error) {
+                console.error("Failed to fetch workflows:", error);
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
     }, [refreshKey]);
 
-    const fetchWorkflows = async () => {
-        setIsLoading(true);
-        try {
-            const res = await fetch("/api/workflows");
-            if (res.ok) {
-                const data = await res.json();
-                setWorkflows(data.workflows || []);
-            }
-        } catch (error) {
-            console.error("Failed to fetch workflows:", error);
-        } finally {
-            setIsLoading(false);
-        }
+    const totalNodes = useMemo(
+        () => workflows.reduce((sum, w) => sum + (w.node_count ?? (Array.isArray(w.nodes_json) ? w.nodes_json.length : 0)), 0),
+        [workflows]
+    );
+    const recent = useMemo(
+        () => workflows.slice(0, 5).map((w) => ({ ...w, graph: graphFromSaved(w.nodes_json, w.edges_json) })),
+        [workflows]
+    );
+    const hasWorkflows = !isLoading && workflows.length > 0;
+
+    const submitPrompt = (text: string) => {
+        const t = text.trim();
+        if (!t) return;
+        onUseTemplate(t);
+        setPrompt("");
+        showToast("Building your workflow…", "success");
     };
 
-    const totalNodes = workflows.reduce((sum, w) => {
-        const nodes = w.nodes_json || [];
-        return sum + (Array.isArray(nodes) ? nodes.length : 0);
-    }, 0);
-
-    const recentWorkflows = workflows.slice(0, 5);
-
     return (
-        <div className="h-full overflow-y-auto bg-background/50">
-            <div className="px-8 py-12 max-w-[1600px] mx-auto">
+        <div className="h-full overflow-y-auto bg-dots-fine">
+            <div className="mx-auto max-w-5xl px-6 pb-20 pt-12 sm:px-10 sm:pt-14">
+                {/* ── Hero ── */}
+                <section className="mb-14 text-center">
+                    <motion.p {...rise(0)} className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+                        <span className="h-1.5 w-1.5 rounded-full bg-volt ring-2 ring-volt/30" />
+                        Ask DevFlow is ready
+                    </motion.p>
+                    <motion.h1 {...rise(1)} className="text-balance text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+                        {greeting()}{firstName ? `, ${firstName}` : ""}.
+                        <br />
+                        <span className="text-muted-foreground">What should we </span>
+                        <span className="highlight-volt">automate</span>
+                        <span className="text-muted-foreground"> today?</span>
+                    </motion.h1>
 
-                {/* ── Welcome Hero ─────────────────────────────── */}
-                <div className="relative mb-16">
-                    {/* Background Glow */}
-                    <div className="absolute -top-24 -left-20 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px] opacity-30 pointer-events-none" />
-
-                    <div className="relative z-10">
-
-                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                            <div>
-                                <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4 tracking-tight leading-tight">
-                                    Build workflows <br />
-                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60">at the speed of thought.</span>
-                                </h1>
-                                <p className="text-lg text-muted-foreground max-w-xl leading-relaxed">
-                                    Design, automate, and deploy AI agents with natural language.
-                                    Start from a template or just ask for what you need.
-                                </p>
-                            </div>
-
-                            <div className="flex gap-3">
+                    <motion.form
+                        {...rise(2)}
+                        onSubmit={(e) => { e.preventDefault(); submitPrompt(prompt); }}
+                        className="mx-auto mt-9 max-w-2xl"
+                    >
+                        <div className="rounded-[28px] border border-border bg-card p-2 shadow-card transition-shadow focus-within:ring-4 focus-within:ring-foreground/5">
+                            <div className="flex items-center gap-2">
+                                <Sparkles className="ml-3 h-5 w-5 shrink-0 text-muted-foreground sm:ml-4" />
+                                <div className="relative min-w-0 flex-1">
+                                    <input
+                                        value={prompt}
+                                        onChange={(e) => setPrompt(e.target.value)}
+                                        aria-label="Describe a workflow to generate"
+                                        className="h-12 w-full min-w-0 truncate bg-transparent px-2 text-[15px] outline-none"
+                                    />
+                                    {/* Custom placeholder so phones get a short one that actually fits */}
+                                    {!prompt && (
+                                        <span className="pointer-events-none absolute inset-y-0 left-2 right-2 flex items-center truncate text-[15px] text-muted-foreground" aria-hidden>
+                                            <span className="truncate sm:hidden">Describe a workflow…</span>
+                                            <span className="hidden truncate sm:inline">Alert Slack when a payment fails…</span>
+                                        </span>
+                                    )}
+                                </div>
                                 <button
-                                    onClick={onNewWorkflow}
-                                    className="h-12 px-6 rounded-xl bg-primary text-primary-foreground font-medium flex items-center gap-2 hover:bg-primary/90 transition-all hover:scale-105 shadow-lg shadow-primary/25"
+                                    type="submit"
+                                    disabled={!prompt.trim()}
+                                    aria-label="Generate workflow"
+                                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 disabled:scale-100 disabled:opacity-25 sm:h-12 sm:w-12"
                                 >
-                                    <Plus className="h-5 w-5" />
-                                    New Workflow
+                                    <ArrowUp className="h-5 w-5" strokeWidth={2.5} />
                                 </button>
                             </div>
                         </div>
-                    </div>
-                </div>
-
-                {/* ── Stats Overview ─────────────────────────────── */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-                    <div className="group relative rounded-2xl border border-border/50 bg-card/30 backdrop-blur-sm p-6 overflow-hidden hover:border-border/80 transition-all">
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="flex justify-between items-start relative z-10">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground mb-1">Total Workflows</p>
-                                <p className="text-4xl font-bold text-foreground tracking-tight">{isLoading ? "—" : workflows.length}</p>
-                            </div>
-                            <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                                <Workflow className="h-5 w-5 text-blue-500" />
-                            </div>
+                        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                            {promptIdeas.map((idea) => (
+                                <button
+                                    key={idea}
+                                    type="button"
+                                    onClick={() => submitPrompt(idea)}
+                                    className="rounded-full border border-border bg-card px-3.5 py-1.5 text-xs text-muted-foreground transition-all hover:border-foreground/30 hover:text-foreground"
+                                >
+                                    {idea}
+                                </button>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={onNewWorkflow}
+                                className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-foreground underline-offset-4 hover:underline"
+                            >
+                                <Plus className="h-3 w-3" /> Start blank
+                            </button>
                         </div>
-                    </div>
+                    </motion.form>
+                </section>
 
-                    <div className="group relative rounded-2xl border border-border/50 bg-card/30 backdrop-blur-sm p-6 overflow-hidden hover:border-border/80 transition-all">
-                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="flex justify-between items-start relative z-10">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground mb-1">Active Nodes</p>
-                                <p className="text-4xl font-bold text-foreground tracking-tight">{isLoading ? "—" : totalNodes}</p>
-                            </div>
-                            <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                                <Box className="h-5 w-5 text-emerald-500" />
-                            </div>
+                {/* ── Loading skeleton ── */}
+                {isLoading && (
+                    <section className="mb-14" aria-busy="true">
+                        <div className="mb-5 h-6 w-56 animate-pulse rounded-lg bg-muted" />
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {[0, 1, 2].map((i) => (
+                                <div key={i} className="overflow-hidden rounded-3xl border border-border/70 bg-card">
+                                    <div className="h-40 animate-pulse bg-muted/60" />
+                                    <div className="space-y-2 p-4">
+                                        <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+                                        <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                    </div>
+                    </section>
+                )}
 
-                    <div className="group relative rounded-2xl border border-border/50 bg-card/30 backdrop-blur-sm p-6 overflow-hidden hover:border-border/80 transition-all">
-                        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="flex justify-between items-start relative z-10">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground mb-1">Latest Activity</p>
-                                <p className="text-4xl font-bold text-foreground tracking-tight">
-                                    {isLoading ? "—" : workflows.length > 0 ? timeAgo(workflows[0].updated_at).replace(" ago", "") : "—"}
-                                </p>
-                            </div>
-                            <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center">
-                                <Activity className="h-5 w-5 text-amber-500" />
-                            </div>
+                {/* ── Pick up where you left off ── */}
+                {hasWorkflows && (
+                    <section className="mb-14">
+                        <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
+                            <h2 className="text-lg font-semibold tracking-tight">Pick up where you left off</h2>
+                            <p className="text-sm text-muted-foreground">
+                                {workflows.length} {workflows.length === 1 ? "workflow" : "workflows"} · {totalNodes} nodes
+                            </p>
                         </div>
-                    </div>
-                </div>
 
-                {/* ── Start Building Section ────────────────────── */}
-                <div className="mb-16">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-semibold text-foreground tracking-tight">Start Building</h2>
-                        <button
-                            onClick={() => onViewAllTemplates?.()}
-                            className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-                        >
-                            View all templates <ChevronRight className="h-4 w-4" />
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {recent.map((wf, i) => (
+                                <motion.button
+                                    key={wf.id}
+                                    {...rise(i)}
+                                    onClick={() => onLoadWorkflow(wf.id)}
+                                    className="group flex flex-col overflow-hidden rounded-3xl border border-border/70 bg-card text-left shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-foreground/20"
+                                >
+                                    <div className="relative h-40 bg-muted/50 bg-dots-fine">
+                                        {wf.graph ? <GraphThumb graph={wf.graph} /> : null}
+                                        <span className="absolute right-3 top-3 rounded-full bg-card/90 px-2.5 py-1 text-[11px] font-medium text-muted-foreground shadow-sm backdrop-blur">
+                                            {wf.node_count ?? (Array.isArray(wf.nodes_json) ? wf.nodes_json.length : 0)} nodes
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-3 p-4">
+                                        <div className="min-w-0">
+                                            <p className="truncate font-display text-[15px] font-semibold text-foreground">{wf.name}</p>
+                                            <p className="mt-0.5 text-xs text-muted-foreground">Edited {timeAgo(wf.updated_at)}</p>
+                                        </div>
+                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors group-hover:bg-foreground group-hover:text-background">
+                                            <ArrowUpRight className="h-4 w-4" />
+                                        </span>
+                                    </div>
+                                </motion.button>
+                            ))}
+
+                            <motion.button
+                                {...rise(recent.length)}
+                                onClick={onNewWorkflow}
+                                className="group flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-border text-muted-foreground transition-all hover:border-foreground/30 hover:bg-card hover:text-foreground"
+                            >
+                                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted transition-colors group-hover:bg-volt group-hover:text-volt-foreground">
+                                    <Plus className="h-5 w-5" />
+                                </span>
+                                <span className="text-sm font-medium">New workflow</span>
+                            </motion.button>
+                        </div>
+                    </section>
+                )}
+
+                {/* ── First-time guide ── */}
+                {!isLoading && workflows.length === 0 && (
+                    <motion.section {...rise(3)} className="mb-14 grid gap-3 sm:grid-cols-3">
+                        {steps.map((s, i) => (
+                            <div key={s.title} className="flex items-start gap-4 rounded-3xl border border-border/70 bg-card p-5 shadow-card">
+                                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-foreground text-background">
+                                    <s.icon className="h-5 w-5" />
+                                </span>
+                                <div>
+                                    <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Step {i + 1}</p>
+                                    <p className="mt-0.5 font-display text-[15px] font-semibold">{s.title}</p>
+                                    <p className="mt-1 text-sm text-muted-foreground">{s.body}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </motion.section>
+                )}
+
+                {/* ── Templates ── */}
+                <section>
+                    <div className="mb-5 flex items-baseline justify-between">
+                        <h2 className="text-lg font-semibold tracking-tight">
+                            {hasWorkflows ? "Start from a template" : "Try a template to see it work"}
+                        </h2>
+                        <button onClick={() => onViewAllTemplates?.()} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                            View all →
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {starterTemplates.map((t) => (
-                            <button
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {featuredTemplates.map((t, i) => (
+                            <motion.button
                                 key={t.name}
-                                onClick={() => {
-                                    onUseTemplate(t.prompt);
-                                    showToast(`Generating "${t.name}"...`, "success");
-                                }}
-                                className={cn(
-                                    "group relative text-left rounded-2xl border border-border/60 bg-card/40 p-5 transition-all duration-300",
-                                    "hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 hover:bg-card/60",
-                                    t.border
-                                )}
+                                {...rise(i + 2)}
+                                onClick={() => onUseTemplateId(t.id)}
+                                className="group flex flex-col overflow-hidden rounded-3xl border border-border/70 bg-card text-left shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-foreground/20"
                             >
-                                <div className={cn("absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-500", t.gradient)} />
-
-                                <div className="relative z-10 flex flex-col h-full">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className={cn(
-                                            "flex h-10 w-10 items-center justify-center rounded-xl border border-border/50 transition-colors",
-                                            t.iconBg
-                                        )}>
-                                            <t.icon className={cn("h-5 w-5", t.iconColor)} />
-                                        </div>
-                                        <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
-                                            <div className="bg-background/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm border border-border/50">
-                                                <ArrowUpRight className="h-3.5 w-3.5 text-foreground/70" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <h3 className="text-base font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">{t.name}</h3>
-                                    <p className="text-sm text-muted-foreground line-clamp-2 mb-4 flex-grow">{t.description}</p>
-
-                                    <div className="flex items-center gap-2 pt-4 border-t border-border/30">
-                                        <span className="text-xs text-muted-foreground font-medium">{t.nodeCount} nodes</span>
-                                    </div>
+                                <div className="relative h-32 bg-muted/50 bg-dots-fine">
+                                    <GraphThumb graph={t.graph} />
                                 </div>
-                            </button>
+                                <div className="flex flex-1 flex-col p-4">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <h3 className="font-display text-[15px] font-semibold text-foreground">{t.name}</h3>
+                                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors group-hover:bg-volt group-hover:text-volt-foreground">
+                                            <ArrowUpRight className="h-3.5 w-3.5" />
+                                        </span>
+                                    </div>
+                                    <p className="mt-1 line-clamp-2 flex-1 text-sm text-muted-foreground">{t.description}</p>
+                                    <p className="mt-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t.category} · {t.graph.nodes.length} nodes</p>
+                                </div>
+                            </motion.button>
                         ))}
                     </div>
-                </div>
-
-                {/* ── Workflows Table ──────────────────────────── */}
-                <div>
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-semibold text-foreground tracking-tight">Recent Workflows</h2>
-                    </div>
-
-                    {isLoading ? (
-                        <div className="flex items-center justify-center py-20">
-                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                        </div>
-                    ) : recentWorkflows.length === 0 ? (
-                        <div className="text-center py-20 rounded-2xl border border-dashed border-border/60 bg-card/20">
-                            <div className="h-16 w-16 bg-muted/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Workflow className="h-8 w-8 text-muted-foreground/40" />
-                            </div>
-                            <h3 className="text-lg font-medium text-foreground mb-2">No workflows yet</h3>
-                            <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                                Create your first workflow using natural language or customize one of the templates above.
-                            </p>
-                            <button
-                                onClick={onNewWorkflow}
-                                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all shadow-md hover:shadow-lg hover:shadow-primary/20"
-                            >
-                                <Plus className="h-4 w-4" />
-                                Create Workflow
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="grid gap-3">
-                            {recentWorkflows.map((wf) => (
-                                <button
-                                    key={wf.id}
-                                    onClick={() => onLoadWorkflow(wf.id)}
-                                    className="group flex items-center justify-between p-4 rounded-xl border border-border/40 bg-card/40 hover:bg-card/80 hover:border-primary/20 transition-all hover:shadow-md hover:shadow-primary/5"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-muted to-muted/50 border border-white/5 flex items-center justify-center group-hover:scale-105 transition-transform">
-                                            <Workflow className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="font-medium text-foreground group-hover:text-primary transition-colors">{wf.name}</p>
-                                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                                <span className="flex items-center gap-1">
-                                                    <Clock className="h-3 w-3" />
-                                                    Edited {timeAgo(wf.updated_at)}
-                                                </span>
-                                                <span className="h-1 w-1 rounded-full bg-border" />
-                                                <span className="flex items-center gap-1">
-                                                    {Array.isArray(wf.nodes_json) ? wf.nodes_json.length : 0} nodes
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-4">
-                                        <div className="px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-xs font-medium text-green-500 hidden sm:block">
-                                            Active
-                                        </div>
-                                        <div className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground/30 group-hover:text-foreground group-hover:bg-muted transition-all">
-                                            <ChevronRight className="h-5 w-5" />
-                                        </div>
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                </section>
             </div>
         </div>
     );
