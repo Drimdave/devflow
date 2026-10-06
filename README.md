@@ -19,6 +19,10 @@
 </p>
 
 <p align="center">
+  <img src="docs/demo.gif" alt="Generating a workflow from a sentence and running it" width="800" />
+</p>
+
+<p align="center">
   A workflow automation app. Describe what you want in plain English, an AI draws it as a graph of nodes,<br />
   and it runs for real: webhooks, schedules, HTTP calls, AI steps, Slack, email and SQL, with a full history of every run.
 </p>
