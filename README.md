@@ -14,6 +14,10 @@
 </p>
 
 <p align="center">
+  <a href="https://devflow-delta-ruby.vercel.app"><strong>Live demo</strong></a>
+</p>
+
+<p align="center">
   A workflow automation app. Describe what you want in plain English, an AI draws it as a graph of nodes,<br />
   and it runs for real: webhooks, schedules, HTTP calls, AI steps, Slack, email and SQL, with a full history of every run.
 </p>
