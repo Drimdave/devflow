@@ -77,7 +77,7 @@ Light theme with black as the action colour and one lime accent, a floating-pane
 
 I'd rather list these than have someone find them:
 
-- **Not deployed yet.** Everything was verified locally and with a production build; I haven't run it on a live host.
+- **Deployed on Vercel (https://devflow-delta-ruby.vercel.app).** Verified locally and with a production build; a live smoke test confirmed sign-up, AI generation and saving.
 - **Email is built but untested against a real provider.** It was tested end to end with a dev-only console mailer.
 - **Scheduled runs** are UTC only, at least five minutes apart, and need an external caller (GitHub Actions can be up to a few minutes late).
 - **Integrations are narrow by design:** database steps work on Neon only, email goes through Resend only, messages through Slack and Discord webhooks. Everything else is clearly marked simulated.
