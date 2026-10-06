@@ -4,6 +4,7 @@
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Tailwind-3.4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind" />
   <img src="https://img.shields.io/badge/Postgres-Neon-00E699?style=for-the-badge&logo=postgresql&logoColor=white" alt="Neon Postgres" />
+  <a href="https://github.com/Drimdave/devflow/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Drimdave/devflow/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status" /></a>
   <img src="https://img.shields.io/badge/tests-92_passing-2ea44f?style=for-the-badge" alt="92 tests passing" />
 </p>
 
