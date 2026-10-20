@@ -291,6 +291,9 @@ Beyond unit tests, the app was exercised against a real database with a delibera
 - **Sessions:** a password reset or sign-out can take up to 5 minutes to end an already-open session (a deliberate speed trade-off from a session cache).
 - **Run history** keeps each workflow's latest 100 runs for 30 days.
 - **Dependencies:** `npm audit` reports 7 findings, all in Tailwind 3's build tooling (not shipped to production); fixing them means the Tailwind 4 upgrade.
+- **AI output is only lightly validated.** The generator checks that the model returned JSON with a `nodes` and an `edges` array, then hands it to the canvas. It does not yet verify provider names, unique node ids, or that every edge points at a real node. The engine runs defensively and reports problems per step, so bad output fails visibly instead of doing damage, but a malformed graph can still reach the editor.
+- **No automated tests for the AI part.** The 92 tests cover the engine, security and infrastructure. Prompt quality and generated graphs were checked by hand, not by tests.
+- **`app/ClientPage.tsx` is too large** (about 900 lines). It holds routing, editor state, autosave, and conflict handling in one component and should be split into hooks and smaller components.
 - The Privacy Policy and Terms are drafts written from what the code does, not legal advice.
 
 ---

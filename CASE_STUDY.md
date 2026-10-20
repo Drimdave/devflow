@@ -83,6 +83,9 @@ I'd rather list these than have someone find them:
 - **Integrations are narrow by design:** database steps work on Neon only, email goes through Resend only, messages through Slack and Discord webhooks. Everything else is clearly marked simulated.
 - A password reset or sign-out can take up to five minutes to end an already-open session (a deliberate speed trade-off from a session cache).
 - Seven `npm audit` findings remain, all in Tailwind 3's build tooling (they never run in production); fixing them means the Tailwind 4 upgrade.
+- **AI output is only lightly validated.** The generator checks that the model returned JSON with `nodes` and `edges` arrays and nothing more: provider names, unique ids and edge targets are not verified. The engine is defensive, so bad output fails visibly, but it can reach the canvas.
+- **No automated tests for the AI part.** The 92 tests cover the engine and infrastructure. Generated graphs were checked by hand.
+- **`app/ClientPage.tsx` is one very large file** (about 900 lines) that should be split into hooks and components.
 - The Privacy Policy and Terms are accurate drafts from what the code does, not legal advice.
 
 ## What I'd do next

@@ -31,12 +31,12 @@ export default function PrivacyPage() {
                     <li><strong>Resend</strong> (email delivery), only if this service has email turned on, receives your email address to send account emails. It also delivers emails that your own workflows send, using your Resend key.</li>
                     <li><strong>Services your workflows call</strong> (Slack, Discord, any URL you enter) receive whatever you configure your workflows to send them.</li>
                 </ul>
-                <p className="mt-3">We don&apos;t sell personal data, we don&apos;t run advertising, and the app contains no analytics or third-party tracking scripts.</p>
+                <p className="mt-3">We don&apos;t sell personal data, we don&apos;t run advertising, and there is no advertising or third-party tracking. Page views are counted with Vercel Web Analytics, which does not use cookies or track you across sites.</p>
             </section>
 
             <section>
                 <h2>Cookies</h2>
-                <p>DevFlow sets only the cookies it needs to keep you signed in. Your theme choice is kept in your browser&apos;s local storage. There are no marketing or analytics cookies.</p>
+                <p>DevFlow sets only the cookies it needs to keep you signed in. Your theme choice is kept in your browser&apos;s local storage. There are no marketing or analytics cookies (Vercel Web Analytics is cookieless).</p>
             </section>
 
             <section>

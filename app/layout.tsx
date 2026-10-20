@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
 
@@ -57,6 +58,7 @@ export default function RootLayout({
       >
         {children}
         <ToastProvider />
+        <Analytics />
       </body>
     </html>
   );
