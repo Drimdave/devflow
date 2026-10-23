@@ -25,8 +25,8 @@ const featuredTemplates = TEMPLATES.filter((t) => t.featured);
 
 const promptIdeas = [
     "Post new GitHub issues to Slack",
-    "Summarize inbound emails with AI",
-    "Sync form submissions to a sheet",
+    "Every weekday at 9am, post a reminder to Discord",
+    "Check an API every hour and alert Slack if it fails",
 ];
 
 const steps = [

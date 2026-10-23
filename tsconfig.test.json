@@ -10,5 +10,5 @@
     "rootDir": ".",
     "types": ["node"]
   },
-  "include": ["lib/engine/**/*.ts", "lib/secrets-crypto.ts", "lib/validate.ts", "lib/cron.ts", "lib/env-check.ts", "lib/run-retention.ts", "lib/password-policy.ts", "lib/auth-lockout.ts", "lib/schedule.ts", "lib/rate-limit.ts", "tests/**/*.ts"]
+  "include": ["lib/engine/**/*.ts", "lib/secrets-crypto.ts", "lib/validate.ts", "lib/cron.ts", "lib/env-check.ts", "lib/run-retention.ts", "lib/password-policy.ts", "lib/auth-lockout.ts", "lib/schedule.ts", "lib/rate-limit.ts", "lib/credential-hints.ts", "tests/**/*.ts"]
 }

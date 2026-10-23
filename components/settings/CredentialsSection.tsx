@@ -5,6 +5,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Check, Copy, KeyRound, Loader2, Lock, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { showToast } from "@/components/ui/Toast";
+import { credentialHint, safeCredentialName } from "@/lib/credential-hints";
 
 interface Credential {
     id: string;
@@ -42,6 +43,16 @@ export default function CredentialsSection() {
         }
     }, []);
     useEffect(() => { load(); }, [load]);
+
+    // Arriving from "Add it" in the chat or run logs: open the form with the name filled in
+    useEffect(() => {
+        const wanted = safeCredentialName(new URLSearchParams(window.location.search).get("add"));
+        if (!wanted) return;
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- the query string only exists in the browser
+        setEditing("new");
+        setName(wanted);
+        setDescription(credentialHint(wanted));
+    }, []);
 
     const openForm = (target: Credential | "new") => {
         setEditing(target);

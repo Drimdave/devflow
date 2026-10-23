@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { credentialHint, missingCredentialFromError } from "@/lib/credential-hints";
 import { Terminal, ChevronDown, CheckCircle2, XCircle, Loader2, GripHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -123,7 +124,7 @@ export default function ExecutionConsole({ isOpen, onClose, onOpen, logs, status
                     </div>
                 ) : (
                     <div className="flex flex-col gap-1.5">
-                        {logs.map((log) => (
+                        {logs.map((log, logIndex) => (
                             <div key={log.id} className="flex items-start gap-3">
                                 <span className="mt-0.5 shrink-0 text-xs text-zinc-400">
                                     {log.timestamp.toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}
@@ -141,6 +142,24 @@ export default function ExecutionConsole({ isOpen, onClose, onOpen, logs, status
                                         <span className="mr-2 rounded bg-white/10 px-1.5 py-0.5 text-[11px] text-zinc-400">{log.nodeId.slice(0, 14)}</span>
                                     )}
                                     {log.message}
+                                    {(() => {
+                                        const missing = log.type === "error" ? missingCredentialFromError(log.message) : null;
+                                        // The engine reports the same failure on the node and again for the run: offer the button once
+                                        const seenBefore = missing !== null && logs.slice(0, logIndex).some((l) => l.type === "error" && missingCredentialFromError(l.message) === missing);
+                                        if (!missing || seenBefore) return null;
+                                        return (
+                                            <div className="mt-1.5 flex flex-wrap items-center gap-2 font-sans text-xs text-zinc-300">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => window.open(`/settings?add=${encodeURIComponent(missing)}`, "_blank", "noopener")}
+                                                    className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-black hover:bg-zinc-200"
+                                                >
+                                                    Add {missing}
+                                                </button>
+                                                <span>{credentialHint(missing)}</span>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         ))}

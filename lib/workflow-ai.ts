@@ -1,4 +1,5 @@
 import Groq from "groq-sdk";
+import { cleanAssistantMessage } from "./credential-hints";
 
 export const groq = new Groq({
     apiKey: process.env.GROQ_API_KEY?.trim(),
@@ -54,11 +55,19 @@ Vertical, top to bottom. Step Y by +170. Branches shift X by +330 (first branch 
 ### EDITING MODE (when CURRENT WORKFLOW JSON is provided)
 Return the COMPLETE updated workflow. Copy every existing node exactly (same id, type, label, description, position, data). Only add or remove what the user asks. New ids must not clash. Connect new nodes into the flow.
 
+### BEING HONEST ABOUT LIMITS
+DevFlow has NO one-click connection to Gmail, Google Sheets, Google Drive, Notion, GitHub, Stripe or similar apps. It can only call them through an HTTP request node with an API key or token the user saves themselves, and for Google apps that token is a short-lived OAuth token, which is not realistic for a normal user. When the request needs one of these apps:
+- Build the closest workflow that can really run, or the minimal one with the HTTP node, and keep it small.
+- Say plainly in "message" that DevFlow cannot connect to that app directly yet, and what the user would have to supply. Never present such a workflow as ready to run. Example: "DevFlow can't connect to Gmail directly yet. This calls the Gmail API and needs a Google OAuth token saved as GMAIL_TOKEN, which expires in about an hour, so treat it as an experiment."
+- Never invent a working integration, URL or credential.
+
 ### RESPONSE FORMAT
-Return ONLY valid JSON: { "nodes": [...], "edges": [...] }. No markdown, no commentary.
+Return ONLY valid JSON: { "message": "...", "nodes": [...], "edges": [...] }. No markdown, no commentary.
+"message" is 1 to 3 short plain sentences written to the user: what you built or changed, and anything they must do before it can run (name each saved credential it needs), or anything DevFlow cannot do yet. No emojis, no "I've created a workflow with N nodes".
 
 ### EXAMPLE (request: "Post to Slack when a new signup comes in")
 {
+  "message": "Built a webhook that posts each new signup to Slack. Save your Slack webhook URL as SLACK_WEBHOOK in Settings, then Run.",
   "nodes": [
     { "id": "trigger_1", "type": "trigger", "label": "New signup", "description": "Your app POSTs each signup to this webhook.", "position": { "x": 350, "y": 0 },
       "data": { "provider": "webhook", "parameters": { "sample": { "name": "Ada Lovelace", "email": "ada@example.com" } } } },
@@ -68,7 +77,7 @@ Return ONLY valid JSON: { "nodes": [...], "edges": [...] }. No markdown, no comm
   "edges": [ { "id": "e1", "source": "trigger_1", "target": "slack_1", "label": null } ]
 }`;
 
-export type GeneratedWorkflow = { nodes: any[]; edges: any[] };
+export type GeneratedWorkflow = { nodes: any[]; edges: any[]; message?: string };
 
 /** Ask the model for a workflow graph and return it parsed and shape-checked. */
 export async function generateWorkflowJSON(
@@ -124,5 +133,8 @@ export async function generateWorkflowJSON(
     if (!workflow.edges || !Array.isArray(workflow.edges)) {
         throw new Error("Invalid workflow: missing edges array");
     }
+    // The model's note to the user is optional and untrusted: keep it only if it is short plain text
+    workflow.message = typeof workflow.message === "string" ? cleanAssistantMessage(workflow.message) : undefined;
     return workflow;
 }
+

@@ -59,7 +59,7 @@ Late in the project I ran a deliberate QA pass in the role of a senior QA engine
 
 Things that held up: every private route returned 401 signed out; twelve cross-account attempts to read, edit, delete or run another user's workflows, runs and credentials all returned 404; stored HTML and script in names never executed; no horizontal overflow on any page at phone width.
 
-The suite is now **92 tests** covering the engine (templates, conditions, branching, triggers, redaction, SSRF, database safety), cron maths, validation, rate limiting, password policy, lockout rules, environment checks and run retention.
+The suite is now **100 tests** covering the engine (templates, conditions, branching, triggers, redaction, SSRF, database safety), cron maths, validation, rate limiting, password policy, lockout rules, environment checks and run retention.
 
 ## Auth and production readiness
 
@@ -84,7 +84,7 @@ I'd rather list these than have someone find them:
 - A password reset or sign-out can take up to five minutes to end an already-open session (a deliberate speed trade-off from a session cache).
 - Seven `npm audit` findings remain, all in Tailwind 3's build tooling (they never run in production); fixing them means the Tailwind 4 upgrade.
 - **AI output is only lightly validated.** The generator checks that the model returned JSON with `nodes` and `edges` arrays and nothing more: provider names, unique ids and edge targets are not verified. The engine is defensive, so bad output fails visibly, but it can reach the canvas.
-- **No automated tests for the AI part.** The 92 tests cover the engine and infrastructure. Generated graphs were checked by hand.
+- **The AI generation itself has no automated tests.** The 100 tests cover the engine, infrastructure and the credential-hint helpers. Generated graphs were checked by hand.
 - **`app/ClientPage.tsx` is one very large file** (about 900 lines) that should be split into hooks and components.
 - The Privacy Policy and Terms are accurate drafts from what the code does, not legal advice.
 

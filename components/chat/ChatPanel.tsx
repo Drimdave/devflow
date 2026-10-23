@@ -4,9 +4,13 @@ import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "re
 import { ArrowUp, Sparkles, X, Maximize2, Minimize2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+type Need = { name: string; hint: string };
+
 type Message = {
     role: "user" | "assistant";
     content: string;
+    /** Saved credentials the generated workflow still needs before it can run. */
+    needs?: Need[];
 };
 
 type WorkflowData = {
@@ -34,7 +38,7 @@ const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function ChatPanel
     const [isExpanded, setIsExpanded] = useState(false);
     const initialMessage: Message = {
         role: "assistant",
-        content: "Hi! Tell me what you want to automate and I'll draw the workflow on the canvas. You can keep chatting to refine it.",
+        content: "Hi! Tell me what you want to automate and I'll draw the workflow on the canvas. I can build with webhooks, schedules, any API (HTTP), Slack, Discord, email (Resend), Postgres (Neon) and AI steps. I can't connect to Gmail, Google Sheets or Notion with one click yet.",
     };
     const [messages, setMessages] = useState<Message[]>([initialMessage]);
     const [input, setInput] = useState("");
@@ -124,17 +128,21 @@ const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function ChatPanel
                 throw new Error(data.error || "Failed to generate workflow");
             }
 
-            // Add assistant response
+            // Add assistant response: the model's own note when it gave one, plus what the workflow still needs
             const hasExisting = hasExistingWorkflow;
+            const count = data.workflow.nodes.length;
+            const fallback = startingFresh
+                ? `Started a new workflow with ${count} nodes. Your previous one is untouched.`
+                : hasExisting
+                ? `Updated the workflow. It now has ${count} nodes.`
+                : `Built a workflow with ${count} nodes.`;
+            const needs: Need[] = Array.isArray(data.needsCredentials) ? data.needsCredentials : [];
             setMessages(prev => [
                 ...prev,
                 {
                     role: "assistant",
-                    content: startingFresh
-                        ? `I've started a new workflow with ${data.workflow.nodes.length} nodes. Your previous one is untouched.`
-                        : hasExisting
-                        ? `I've updated the workflow — it now has ${data.workflow.nodes.length} nodes. Check the canvas!`
-                        : `I've created a workflow with ${data.workflow.nodes.length} nodes. Check the canvas to see it!`,
+                    content: typeof data.note === "string" && data.note ? data.note : fallback,
+                    ...(needs.length > 0 && { needs }),
                 },
             ]);
 
@@ -185,8 +193,8 @@ const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function ChatPanel
 
     const suggestions = [
         "Send a Slack alert when a webhook receives an error",
-        "Summarize new emails with AI every morning",
-        "Sync new Typeform leads to a spreadsheet",
+        "Every weekday at 9am, post a reminder to Discord",
+        "Call an API every hour and email me if it returns an error",
     ];
 
     return (
@@ -229,6 +237,27 @@ const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function ChatPanel
                         )}
                     >
                         {msg.content}
+                        {msg.needs && msg.needs.length > 0 && (
+                            <div className="mt-2.5 space-y-2 border-t border-border/70 pt-2.5">
+                                <p className="text-xs font-semibold">Before you press Run, save {msg.needs.length === 1 ? "this credential" : "these credentials"}:</p>
+                                {msg.needs.map((n) => (
+                                    <div key={n.name} className="rounded-xl bg-background/70 p-2.5">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <code className="truncate text-xs font-semibold">{n.name}</code>
+                                            <button
+                                                type="button"
+                                                onClick={() => window.open(`/settings?add=${encodeURIComponent(n.name)}`, "_blank", "noopener")}
+                                                className="shrink-0 rounded-full bg-foreground px-2.5 py-1 text-[11px] font-semibold text-background hover:opacity-90"
+                                            >
+                                                Add it
+                                            </button>
+                                        </div>
+                                        <p className="mt-1 text-xs text-muted-foreground">{n.hint}</p>
+                                    </div>
+                                ))}
+                                <p className="text-[11px] text-muted-foreground">Opens Settings in a new tab, so your canvas stays as it is.</p>
+                            </div>
+                        )}
                     </div>
                 ))}
 

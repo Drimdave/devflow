@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/Tailwind-3.4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind" />
   <img src="https://img.shields.io/badge/Postgres-Neon-00E699?style=for-the-badge&logo=postgresql&logoColor=white" alt="Neon Postgres" />
   <a href="https://github.com/Drimdave/devflow/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Drimdave/devflow/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status" /></a>
-  <img src="https://img.shields.io/badge/tests-92_passing-2ea44f?style=for-the-badge" alt="92 tests passing" />
+  <img src="https://img.shields.io/badge/tests-100_passing-2ea44f?style=for-the-badge" alt="100 tests passing" />
 </p>
 
 <h1 align="center">DevFlow</h1>
@@ -48,7 +48,7 @@
 
 DevFlow's rule is that **anything that runs really runs, and anything that doesn't says so.** A node with no real integration shows a **Simulated** badge and explains why; a trigger it can't listen for says so in its settings; a schedule tells you whether anything will actually fire it.
 
-- **Generate:** describe an automation in the chat ("when a ticket comes in, route it by priority") and get a graph. The AI is told exactly which nodes the engine can execute, asked for the fewest nodes that do the job, and told never to invent emails, URLs or keys.
+- **Generate:** describe an automation in the chat ("when a ticket comes in, route it by priority") and get a graph. The AI is told exactly which nodes the engine can execute, asked for the fewest nodes that do the job, and told never to invent emails, URLs or keys. When a request needs an app DevFlow cannot connect to (Gmail, Sheets, Notion), the reply says so plainly and lists the credentials to save before running.
 - **Edit visually:** a React Flow canvas with a node library, settings panel, tidy-up, minimap, and a chat that can edit the current workflow or **start fresh**.
 - **Run it for real:** from the editor (streaming logs and per-node results), from a **webhook** (a secret URL per workflow), or on a **schedule** (cron).
 - **See what happened:** every run is saved with each step's output, status and timing. The latest 100 runs per workflow are kept for 30 days.
@@ -237,7 +237,7 @@ devflow/
 │
 ├── db/schema.sql           # Canonical, idempotent schema (npm run db:migrate)
 ├── scripts/                # migrate.mjs, check-env.mjs
-├── tests/engine/           # 13 test files, 92 tests
+├── tests/engine/           # 14 test files, 100 tests
 ├── docs/screenshots/       # Images used in this README
 ├── DEPLOYMENT.md           # Production checklist
 ├── CASE_STUDY.md           # Engineering write-up
@@ -257,7 +257,7 @@ All routes return JSON. "Session" means a signed-in user; every query is scoped 
 | `GET` `POST` | `/api/workflows/:id/webhook` | session | Get this workflow's webhook path / rotate it |
 | `POST` | `/api/hooks/:token` | secret URL | **Public webhook:** runs the saved workflow with the JSON body as `{{input}}` |
 | `POST` | `/api/execute` | session | Run a graph (server-sent events: logs, per-node results, completion) |
-| `POST` | `/api/chat` | session | Generate or edit a workflow from a prompt (rate-limited) |
+| `POST` | `/api/chat` | session | Generate or edit a workflow from a prompt, replying with a plain-language note and the saved credentials it still needs (rate-limited) |
 | `GET` `DELETE` | `/api/runs` | session | List runs (`?workflowId=&status=&limit=`) / clear history (`?workflowId=` for one workflow) |
 | `GET` | `/api/runs/:id` | session | One run with every step |
 | `GET` `POST` | `/api/credentials` | session | List (names and hints only) / add |
@@ -277,7 +277,7 @@ All routes return JSON. "Session" means a signed-in user; every query is scoped 
 npm test
 ```
 
-92 tests (about 1,000 lines) run with Node's built-in test runner, with no test framework to install. They cover template resolution, the condition parser, branching and trigger selection, secret redaction (including URL-encoded and base64 forms), every IPv4/IPv6 address form the SSRF guard must refuse, database-node safety (parameterised queries, read-only by default), cron maths, input validation, rate limiting, password policy, sign-in lockout, environment checks and run retention.
+100 tests (about 1,100 lines) run with Node's built-in test runner, with no test framework to install. They cover template resolution, the condition parser, branching and trigger selection, secret redaction (including URL-encoded and base64 forms), every IPv4/IPv6 address form the SSRF guard must refuse, database-node safety (parameterised queries, read-only by default), cron maths, input validation, rate limiting, password policy, sign-in lockout, environment checks and run retention.
 
 Beyond unit tests, the app was exercised against a real database with a deliberate QA pass (cross-account access, injection, oversized input, concurrent scheduler calls, restart-persistence of rate limits). The story is in [CASE_STUDY.md](./CASE_STUDY.md).
 
@@ -292,7 +292,7 @@ Beyond unit tests, the app was exercised against a real database with a delibera
 - **Run history** keeps each workflow's latest 100 runs for 30 days.
 - **Dependencies:** `npm audit` reports 7 findings, all in Tailwind 3's build tooling (not shipped to production); fixing them means the Tailwind 4 upgrade.
 - **AI output is only lightly validated.** The generator checks that the model returned JSON with a `nodes` and an `edges` array, then hands it to the canvas. It does not yet verify provider names, unique node ids, or that every edge points at a real node. The engine runs defensively and reports problems per step, so bad output fails visibly instead of doing damage, but a malformed graph can still reach the editor.
-- **No automated tests for the AI part.** The 92 tests cover the engine, security and infrastructure. Prompt quality and generated graphs were checked by hand, not by tests.
+- **The AI generation itself is not covered by automated tests.** The 100 tests cover the engine, security, infrastructure and the helpers that tell users which credentials a generated workflow needs. Prompt quality and generated graphs were checked by hand.
 - **`app/ClientPage.tsx` is too large** (about 900 lines). It holds routing, editor state, autosave, and conflict handling in one component and should be split into hooks and smaller components.
 - The Privacy Policy and Terms are drafts written from what the code does, not legal advice.
 

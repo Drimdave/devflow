@@ -4,6 +4,8 @@ import { headers } from "next/headers";
 import { generateWorkflowJSON } from "@/lib/workflow-ai";
 import { rateLimit } from "@/lib/limits";
 import { readJson } from "@/lib/validate";
+import { sql } from "@/lib/db";
+import { missingCredentials, credentialHint } from "@/lib/credential-hints";
 
 const MAX_MESSAGE_CHARS = 2000;
 const MAX_CONTEXT_CHARS = 300_000; // the current workflow sent along for edits
@@ -118,9 +120,15 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // Tell the user what the workflow still needs: credentials it references that this account hasn't saved
+        const saved = await sql`SELECT name FROM credentials WHERE user_id = ${session.user.id}`;
+        const needs = missingCredentials(workflow, saved.map((r: any) => r.name)).map((name) => ({ name, hint: credentialHint(name) }));
+        const { message: note, ...graph } = workflow;
+
         return NextResponse.json({
-            workflow,
-            message: "Workflow generated successfully",
+            workflow: graph,
+            note: note ?? null,
+            needsCredentials: needs,
         });
     } catch (error: any) {
         console.error("Groq API Error:", error?.status, error?.message);
