@@ -387,8 +387,7 @@ const fmtLocal = (d: Date) => d.toLocaleString(undefined, { hour: "2-digit", min
 
 /** What a Schedule trigger will really do, including whether anything is actually triggering schedules on this server. */
 function ScheduleSection({ cron, timezone, workflowId, isLive }: { cron: string; timezone?: unknown; workflowId?: string | null; isLive?: boolean }) {
-    const [status, setStatus] = useState<{ configured: boolean; lastTickAt: string | null; running: boolean } | null>(null);
-    const [nowMs] = useState(() => Date.now());
+    const [status, setStatus] = useState<{ configured: boolean; lastTickAt: string | null; running: boolean; minutesAgo: number | null; lastDue: number | null; lastRan: number | null } | null>(null);
     useEffect(() => {
         let live = true;
         fetch("/api/schedule/status")
@@ -406,7 +405,7 @@ function ScheduleSection({ cron, timezone, workflowId, isLive }: { cron: string;
         for (let i = 0; i < 3 && at; i++) { at = nextRun(spec, at); if (at) upcoming.push(at); }
     }
     const tz = typeof timezone === "string" ? timezone.trim() : "";
-    const ago = status?.lastTickAt ? Math.max(0, Math.round((nowMs - new Date(status.lastTickAt).getTime()) / 60000)) : null;
+    const ago = status?.minutesAgo ?? null;
 
     // The one honest sentence about whether this will fire
     let state: { tone: "ok" | "warn" | "bad"; text: string };
@@ -415,8 +414,15 @@ function ScheduleSection({ cron, timezone, workflowId, isLive }: { cron: string;
     else if (isLive === false) state = { tone: "warn", text: "Paused. Turn the workflow on (the Live switch in the header) to run on this schedule." };
     else if (!status) state = { tone: "warn", text: "Checking the scheduler…" };
     else if (!status.configured) state = { tone: "bad", text: "Not running: this server has no scheduler set up yet (CRON_SECRET is missing). See Scheduling in the README." };
-    else if (!status.running) state = { tone: "bad", text: status.lastTickAt ? `Not running: the scheduler last checked in ${ago} min ago. Something needs to call /api/cron/tick every minute.` : "Not running: nothing has called the scheduler yet. Something needs to call /api/cron/tick every minute." };
-    else state = { tone: "ok", text: `Active. The scheduler checked in ${ago === 0 ? "just now" : `${ago} min ago`}.` };
+    else if (!status.running) state = { tone: "bad", text: status.lastTickAt ? `Not running: the scheduler last checked in ${ago} min ago. Something needs to call /api/cron/tick regularly (every 5 minutes with the bundled GitHub Action).` : "Not running: nothing has called the scheduler yet. Something needs to call /api/cron/tick regularly." };
+    else {
+        const behind = status.lastDue !== null && status.lastRan !== null && status.lastDue > status.lastRan;
+        state = {
+            tone: behind ? "warn" : "ok",
+            text: `Active. The scheduler last checked in ${ago === 0 ? "just now" : `${ago} min ago`}.` +
+                (behind ? ` That check found ${status.lastDue} due and ran ${status.lastRan}, so a run may have been skipped or delayed. Check Runs for details.` : ""),
+        };
+    }
 
     const toneCls = { ok: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300", warn: "bg-amber-500/15 text-amber-800 dark:text-amber-300", bad: "bg-destructive/10 text-destructive" }[state.tone];
 

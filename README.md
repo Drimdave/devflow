@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/Tailwind-3.4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind" />
   <img src="https://img.shields.io/badge/Postgres-Neon-00E699?style=for-the-badge&logo=postgresql&logoColor=white" alt="Neon Postgres" />
   <a href="https://github.com/Drimdave/devflow/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Drimdave/devflow/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI status" /></a>
-  <img src="https://img.shields.io/badge/tests-100_passing-2ea44f?style=for-the-badge" alt="100 tests passing" />
+  <img src="https://img.shields.io/badge/tests-110_passing-2ea44f?style=for-the-badge" alt="110 tests passing" />
 </p>
 
 <h1 align="center">DevFlow</h1>
@@ -197,7 +197,15 @@ DevFlow does not run a timer inside the app (serverless hosts don't keep one ali
 
    Use whatever you have: **GitHub Actions** (`.github/workflows/scheduler.yml` is included; it does nothing until you add `APP_URL` and `CRON_SECRET` as repository secrets), **cron-job.org**, a `crontab` entry on a server, or **Vercel Cron** (per-minute schedules need a Pro plan; the free plan only allows daily, and a more frequent cron makes the deploy fail).
 
-Each call runs every due workflow (up to 10 per call; the rest run on the next call), once, even if calls overlap. The editor's Schedule panel tells you whether a scheduler has actually checked in recently, so you can tell if it's wired up. The same call deletes expired run history about once an hour.
+Each call runs every due workflow (up to 10 per call; the rest run on the next call), once, even if calls overlap. The editor's Schedule panel tells you whether a scheduler has actually checked in recently (it says "not running" after 12 minutes of silence, which allows for a late GitHub Actions run), and shows how many workflows the last check found due and how many it ran. The same call deletes expired run history about once an hour.
+
+What happens when things go wrong:
+
+- **A workflow fails:** the failure is saved to run history like any other run, including failures before the first step (a loop, duplicate node ids).
+- **The scheduler itself fails** (a database error while loading credentials or saving the result): a failed run with an explanatory message is saved to run history. It is **not retried**, because retrying could send the same email twice.
+- **After an outage,** the intervals you missed collapse into **one** run when the scheduler returns. They are not replayed.
+- **A due workflow whose schedule was removed or became invalid** is cleared and logged on the server, and nothing runs.
+- **A killed function** (the host stops it mid-run) cannot write anything. The scheduler stops starting new runs after 20 seconds so one run can finish inside the 60 second limit, but a run that is killed anyway leaves no record.
 
 ---
 
@@ -237,7 +245,7 @@ devflow/
 │
 ├── db/schema.sql           # Canonical, idempotent schema (npm run db:migrate)
 ├── scripts/                # migrate.mjs, check-env.mjs
-├── tests/engine/           # 14 test files, 100 tests
+├── tests/engine/           # 15 test files, 110 tests
 ├── docs/screenshots/       # Images used in this README
 ├── DEPLOYMENT.md           # Production checklist
 ├── CASE_STUDY.md           # Engineering write-up
@@ -263,7 +271,7 @@ All routes return JSON. "Session" means a signed-in user; every query is scoped 
 | `GET` `POST` | `/api/credentials` | session | List (names and hints only) / add |
 | `PUT` `DELETE` | `/api/credentials/:id` | session | Replace the value or note / delete |
 | `GET` `POST` | `/api/cron/tick` | `Bearer CRON_SECRET` | The scheduler: run what's due, purge old history |
-| `GET` | `/api/schedule/status` | session | Is a scheduler actually checking in? |
+| `GET` | `/api/schedule/status` | session | Is a scheduler actually checking in, and what did its last call find due and run? |
 | `POST` | `/api/demo` | none | Landing-page demo generation (per-visitor and daily limits) |
 | `GET` | `/api/auth-config` | none | Whether email features are available |
 | `GET` | `/api/health` | none | Liveness for uptime monitors |
@@ -277,7 +285,7 @@ All routes return JSON. "Session" means a signed-in user; every query is scoped 
 npm test
 ```
 
-100 tests (about 1,100 lines) run with Node's built-in test runner, with no test framework to install. They cover template resolution, the condition parser, branching and trigger selection, secret redaction (including URL-encoded and base64 forms), every IPv4/IPv6 address form the SSRF guard must refuse, database-node safety (parameterised queries, read-only by default), cron maths, input validation, rate limiting, password policy, sign-in lockout, environment checks and run retention.
+110 tests (about 1,200 lines) run with Node's built-in test runner, with no test framework to install. They cover template resolution, the condition parser, branching and trigger selection, secret redaction (including URL-encoded and base64 forms), every IPv4/IPv6 address form the SSRF guard must refuse, database-node safety (parameterised queries, read-only by default), cron maths, input validation, rate limiting, password policy, sign-in lockout, environment checks and run retention.
 
 Beyond unit tests, the app was exercised against a real database with a deliberate QA pass (cross-account access, injection, oversized input, concurrent scheduler calls, restart-persistence of rate limits). The story is in [CASE_STUDY.md](./CASE_STUDY.md).
 
@@ -286,13 +294,13 @@ Beyond unit tests, the app was exercised against a real database with a delibera
 ## Known limits
 
 - **Integrations are narrow by design:** database steps work on **Neon** only, email goes through **Resend** only, messages through Slack and Discord webhooks. Everything else is clearly marked simulated.
-- **Scheduled runs** are UTC only, at least 5 minutes apart, and depend on an external caller.
+- **Scheduled runs** are UTC only, at least 5 minutes apart, and depend on an external caller. A run lost to a crash is recorded but not retried, missed intervals after an outage collapse into one run, and a function killed mid-run leaves no record (see Scheduling).
 - **Email flows** (verification, password reset) are built and tested with a console mailer, but not yet against a live provider.
 - **Sessions:** a password reset or sign-out can take up to 5 minutes to end an already-open session (a deliberate speed trade-off from a session cache).
 - **Run history** keeps each workflow's latest 100 runs for 30 days.
 - **Dependencies:** `npm audit` reports 7 findings, all in Tailwind 3's build tooling (not shipped to production); fixing them means the Tailwind 4 upgrade.
 - **AI output is only lightly validated.** The generator checks that the model returned JSON with a `nodes` and an `edges` array, then hands it to the canvas. It does not yet verify provider names, unique node ids, or that every edge points at a real node. The engine runs defensively and reports problems per step, so bad output fails visibly instead of doing damage, but a malformed graph can still reach the editor.
-- **The AI generation itself is not covered by automated tests.** The 100 tests cover the engine, security, infrastructure and the helpers that tell users which credentials a generated workflow needs. Prompt quality and generated graphs were checked by hand.
+- **The AI generation itself is not covered by automated tests.** The 110 tests cover the engine, security, infrastructure, the scheduler's failure paths and the helpers that tell users which credentials a generated workflow needs. Prompt quality and generated graphs were checked by hand.
 - **`app/ClientPage.tsx` is too large** (about 900 lines). It holds routing, editor state, autosave, and conflict handling in one component and should be split into hooks and smaller components.
 - The Privacy Policy and Terms are drafts written from what the code does, not legal advice.
 

@@ -6,6 +6,7 @@ import { loadSecrets } from "@/lib/credentials";
 import { emailGate } from "@/lib/email-quota";
 import { nextScheduledRun } from "@/lib/schedule";
 import { purgeExpiredRuns, saveRun } from "@/lib/run-store";
+import { executeScheduledRun } from "@/lib/scheduled-run";
 
 // The scheduler. Something outside the app must call this about once a minute (Vercel Cron, GitHub Actions, cron-job.org,
 // a server's crontab...) with  Authorization: Bearer $CRON_SECRET. Each call runs every Live workflow whose schedule is due.
@@ -14,7 +15,9 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const MAX_PER_TICK = 10;      // runs started per call; anything left over is still due and goes in the next call
-const TIME_BUDGET_MS = 40_000; // stop starting new runs after this, leaving room to finish within maxDuration
+// Stop starting new runs after this. A run can take up to the engine's 30 s limit, so the budget plus one full run must fit
+// inside maxDuration (60 s) or the function could be killed mid-run, which leaves no record.
+const TIME_BUDGET_MS = 20_000;
 
 function authorised(req: Request): boolean {
     const secret = process.env.CRON_SECRET?.trim();
@@ -39,7 +42,7 @@ async function tick(req: Request) {
         ORDER BY next_run_at
         LIMIT ${MAX_PER_TICK}`;
 
-    let ran = 0, skipped = 0;
+    let ran = 0, skipped = 0, lost = 0;
     for (const wf of due) {
         if (Date.now() - started > TIME_BUDGET_MS) break;
         const nodes = Array.isArray(wf.nodes_json) ? wf.nodes_json : [];
@@ -52,22 +55,26 @@ async function tick(req: Request) {
             WHERE id = ${wf.id} AND is_active AND next_run_at IS NOT NULL AND next_run_at <= now()
             RETURNING id`;
         if (claimed.length === 0) { skipped++; continue; }
-        if (!upcoming) { skipped++; continue; } // its schedule was removed or broke since it became due: nothing to run
+        if (!upcoming) {
+            // Its schedule was removed or broke since it became due: there is nothing to run, and it stays off until it is saved again
+            console.warn(`Scheduled workflow ${wf.id} was due but has no valid schedule any more; cleared.`);
+            skipped++;
+            continue;
+        }
 
-        try {
-            const secrets = await loadSecrets(wf.user_id);
-            const summary = await runWorkflow(nodes, Array.isArray(wf.edges_json) ? wf.edges_json : [], {
+        // The claim above already moved next_run_at forward, so a run lost after this point is never retried (retrying could
+        // send the same email twice). executeScheduledRun makes sure such a loss still shows up in run history.
+        const outcome = await executeScheduledRun(wf as { id: unknown; user_id: string }, {
+            loadSecrets,
+            run: (secrets) => runWorkflow(nodes, Array.isArray(wf.edges_json) ? wf.edges_json : [], {
                 start: "schedule",
                 secrets,
                 emailGate: () => emailGate(wf.user_id),
-            });
-            if (summary.steps.length > 0) {
-                await saveRun({ workflowId: String(wf.id), userId: wf.user_id, status: summary.status, mode: "schedule", startedAt: summary.startedAt, durationMs: summary.durationMs, error: summary.error, steps: summary.steps });
-            }
-            ran++;
-        } catch (err) {
-            console.error("Scheduled run crashed:", err);
-        }
+            }),
+            saveRun,
+            log: (message, err) => console.error(`${message}:`, err),
+        });
+        if (outcome === "ran") ran++; else lost++;
     }
 
     // About once an hour: delete runs past the retention age, and runs whose workflow no longer exists
@@ -86,7 +93,7 @@ async function tick(req: Request) {
         INSERT INTO scheduler_heartbeat (id, last_tick_at, last_due, last_ran) VALUES (1, now(), ${due.length}, ${ran})
         ON CONFLICT (id) DO UPDATE SET last_tick_at = now(), last_due = ${due.length}, last_ran = ${ran}`;
 
-    return NextResponse.json({ due: due.length, ran, skipped, ...(purged ? { purged } : {}), durationMs: Date.now() - started });
+    return NextResponse.json({ due: due.length, ran, skipped, lost, ...(purged ? { purged } : {}), durationMs: Date.now() - started });
 }
 
 export const GET = tick;
