@@ -70,8 +70,8 @@ In production the server also checks this when it starts and **refuses to boot**
 
 The app has no timer of its own. **Something must call `GET /api/cron/tick` about once a minute** with `Authorization: Bearer $CRON_SECRET`. Pick one:
 
-- **GitHub Actions (free):** `.github/workflows/scheduler.yml` is included. Add repository secrets `APP_URL` and `CRON_SECRET`. GitHub runs it at most every 5 minutes and sometimes late, so schedules can fire a few minutes behind.
-- **cron-job.org** or similar: a request every minute with the header above.
+- **cron-job.org** or similar (recommended, free): a request every minute to `https://YOUR-APP/api/cron/tick` with the header above. This is the only option here that fires on time.
+- **GitHub Actions (free, best effort):** `.github/workflows/scheduler.yml` is included. Add repository secrets `APP_URL` and `CRON_SECRET`. GitHub does not honour a `*/5` schedule reliably: on this project the runs were 3 to 10 hours apart (median about 6), so schedules can fire hours late. GitHub also pauses scheduled workflows after 60 days without repository activity. Keep it as a backup, not the only caller.
 - **Vercel Cron:** per-minute schedules need a paid (Pro) plan. The free plan only allows daily cron jobs, and a more frequent `vercel.json` cron makes the deploy fail, which is why none is included.
 
 Open any workflow with a Schedule trigger: its settings say **Active** when a scheduler has checked in recently, and explain what's wrong when it hasn't. The same call also deletes expired run history about once an hour.

@@ -79,7 +79,7 @@ I'd rather list these than have someone find them:
 
 - **Deployed on Vercel (https://devflow-delta-ruby.vercel.app).** Verified locally and with a production build; a live smoke test confirmed sign-up, AI generation and saving.
 - **Email is built but untested against a real provider.** It was tested end to end with a dev-only console mailer.
-- **Scheduled runs** are UTC only, at least five minutes apart, and need an external caller (GitHub Actions can be up to a few minutes late). A run lost to a scheduler error is recorded as failed but not retried (a retry could send an email twice), and a function killed mid-run leaves no record.
+- **Scheduled runs** are UTC only, at least five minutes apart, and need an external caller. GitHub Actions alone is not enough: I measured its scheduled runs on this repo at 3 to 10 hours apart, so a per-minute caller such as cron-job.org is the real answer. A run lost to a scheduler error is recorded as failed but not retried (a retry could send an email twice), and a function killed mid-run leaves no record.
 - **Integrations are narrow by design:** database steps work on Neon only, email goes through Resend only, messages through Slack and Discord webhooks. Everything else is clearly marked simulated.
 - A password reset or sign-out can take up to five minutes to end an already-open session (a deliberate speed trade-off from a session cache).
 - Seven `npm audit` findings remain, all in Tailwind 3's build tooling (they never run in production); fixing them means the Tailwind 4 upgrade.

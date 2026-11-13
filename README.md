@@ -195,9 +195,9 @@ DevFlow does not run a timer inside the app (serverless hosts don't keep one ali
    curl -H "Authorization: Bearer $CRON_SECRET" https://your-app.example.com/api/cron/tick
    ```
 
-   Use whatever you have: **GitHub Actions** (`.github/workflows/scheduler.yml` is included; it does nothing until you add `APP_URL` and `CRON_SECRET` as repository secrets), **cron-job.org**, a `crontab` entry on a server, or **Vercel Cron** (per-minute schedules need a Pro plan; the free plan only allows daily, and a more frequent cron makes the deploy fail).
+   Use whatever you have: **cron-job.org** (free, every minute, and the one that fires on time), a `crontab` entry on a server, **GitHub Actions** (`.github/workflows/scheduler.yml` is included and does nothing until you add `APP_URL` and `CRON_SECRET` as repository secrets; but GitHub's schedule is best effort, and on this project its runs were 3 to 10 hours apart, so use it as a backup), or **Vercel Cron** (per-minute schedules need a Pro plan; the free plan only allows daily, and a more frequent cron makes the deploy fail).
 
-Each call runs every due workflow (up to 10 per call; the rest run on the next call), once, even if calls overlap. The editor's Schedule panel tells you whether a scheduler has actually checked in recently (it says "not running" after 12 minutes of silence, which allows for a late GitHub Actions run), and shows how many workflows the last check found due and how many it ran. The same call deletes expired run history about once an hour.
+Each call runs every due workflow (up to 10 per call; the rest run on the next call), once, even if calls overlap. The editor's Schedule panel tells you whether a scheduler has actually checked in recently (it says "not running" after 12 minutes of silence, which assumes a caller that checks in every minute or few minutes), and shows how many workflows the last check found due and how many it ran. The same call deletes expired run history about once an hour.
 
 What happens when things go wrong:
 
@@ -294,7 +294,7 @@ Beyond unit tests, the app was exercised against a real database with a delibera
 ## Known limits
 
 - **Integrations are narrow by design:** database steps work on **Neon** only, email goes through **Resend** only, messages through Slack and Discord webhooks. Everything else is clearly marked simulated.
-- **Scheduled runs** are UTC only, at least 5 minutes apart, and depend on an external caller. A run lost to a crash is recorded but not retried, missed intervals after an outage collapse into one run, and a function killed mid-run leaves no record (see Scheduling).
+- **Scheduled runs** are UTC only, at least 5 minutes apart, and depend on an external caller. GitHub Actions alone is not reliable for this (measured gaps of 3 to 10 hours between its runs), so a per-minute caller such as cron-job.org is needed for on-time schedules. A run lost to a crash is recorded but not retried, missed intervals after an outage collapse into one run, and a function killed mid-run leaves no record (see Scheduling).
 - **Email flows** (verification, password reset) are built and tested with a console mailer, but not yet against a live provider.
 - **Sessions:** a password reset or sign-out can take up to 5 minutes to end an already-open session (a deliberate speed trade-off from a session cache).
 - **Run history** keeps each workflow's latest 100 runs for 30 days.

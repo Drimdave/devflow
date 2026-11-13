@@ -1,8 +1,8 @@
 // Whether a scheduler is really calling in. Pure functions, covered by the node test runner.
 
 /**
- * The bundled GitHub Actions caller runs every 5 minutes and GitHub is sometimes late, so one or two missed
- * calls are normal. Anything quieter than this is treated as "not running".
+ * Assumes a caller that checks in every minute or every few minutes (cron-job.org, a crontab). Anything quieter than this is
+ * treated as "not running". GitHub Actions alone does not meet it: its scheduled runs were hours apart on this project.
  */
 export const SCHEDULER_HEALTHY_WITHIN_MS = 12 * 60_000;
 

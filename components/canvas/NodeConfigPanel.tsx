@@ -414,7 +414,7 @@ function ScheduleSection({ cron, timezone, workflowId, isLive }: { cron: string;
     else if (isLive === false) state = { tone: "warn", text: "Paused. Turn the workflow on (the Live switch in the header) to run on this schedule." };
     else if (!status) state = { tone: "warn", text: "Checking the scheduler…" };
     else if (!status.configured) state = { tone: "bad", text: "Not running: this server has no scheduler set up yet (CRON_SECRET is missing). See Scheduling in the README." };
-    else if (!status.running) state = { tone: "bad", text: status.lastTickAt ? `Not running: the scheduler last checked in ${ago} min ago. Something needs to call /api/cron/tick regularly (every 5 minutes with the bundled GitHub Action).` : "Not running: nothing has called the scheduler yet. Something needs to call /api/cron/tick regularly." };
+    else if (!status.running) state = { tone: "bad", text: status.lastTickAt ? `Not running: the scheduler last checked in ${ago} min ago. Something needs to call /api/cron/tick every minute. GitHub Actions alone can be hours late; see Scheduling in the README.` : "Not running: nothing has called the scheduler yet. Something needs to call /api/cron/tick regularly." };
     else {
         const behind = status.lastDue !== null && status.lastRan !== null && status.lastDue > status.lastRan;
         state = {
